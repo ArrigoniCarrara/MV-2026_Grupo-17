@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
     // Leer la cabecera completa de 8 bytes
     programa p;
 
-    if (fread(&p, sizeof(programa), 1, archivo) != 1) {
+    if (fread(&p, sizeof(programa), 1, archivo) != 1) { // (CORREGIR)se toman los 0 como bytes y se aumenta una bocha los BYTES
         printf("Error al leer la cabecera del archivo\n");
         fclose(archivo);
         return -1;
@@ -37,11 +37,11 @@ int main(int argc, char *argv[]) {
     printf("--- Cabecera VMX leída con éxito ---\n");
     printf("Identificador: %.5s\n", p.identificador);
     printf("Versión: %u\n", p.version);
-    printf("Tamaño de código: %u bytes\n\n", p.tamano_codigo);
+    printf("Tamaño de código: %u bytes\n\n", p.tam_codigo);
 
-    // Cargar el código máquina en la memoria RAM simulada
+    // Cargar el código máquina en la memoria RAM 
     
-    size_t bytes_leidos = fread(RAM, sizeof(unsigned char), p.tamano_codigo, archivo);// Lee directamente todo el codigo del archivo binario 
+    size_t bytes_leidos = fread(RAM, sizeof(unsigned char), p.tam_codigo, archivo);// Lee directamente todo el codigo del archivo binario 
     printf("Bytes de código máquina cargados en RAM: %zu\n\n", bytes_leidos);         // en el vector RAM
 
 
@@ -54,6 +54,12 @@ int main(int argc, char *argv[]) {
         printf(" | %02X\n", RAM[i]);       
     }
     printf("\n");
+
+    tabla_seg[0].base = 0;  //Inicializamos tabla de segmentos
+    tabla_seg[0].tam = p.tam_codigo;
+    tabla_seg[1].base = p.tam_codigo;  //Tener en cuenta que en la segunda parte tendremos que calcularlo y no inicializarlo
+    tabla_seg[1].tam = TAM_MEMORIA - p.tam_codigo;
+
 
     fclose(archivo);
     return -1;

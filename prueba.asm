@@ -4,5 +4,5 @@ mov eax, 0b01
 ldh ecx, 4
 ldl ecx, 1
 sys 1
-mov eax, [edx] ; hola
+mov [eax], [edx] 
 stop 
