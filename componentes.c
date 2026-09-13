@@ -11,7 +11,7 @@ typedef struct {
     uint8_t version;        
     uint16_t tam_codigo; 
 
-} programa; // Cabecera de Programa
+} cabecera_programa; // Cabecera de Programa
 
 typedef struct{
     uint16_t base;
