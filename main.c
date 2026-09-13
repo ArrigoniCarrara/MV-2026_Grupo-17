@@ -19,9 +19,9 @@ int main(int argc, char *argv[]) {
     }
 
     // Leer la cabecera completa de 8 bytes
-    programa p;
+    cabecera_programa p;
 
-    if (fread(&p, sizeof(programa), 1, archivo) != 1) { // (CORREGIR)se toman los 0 como bytes y se aumenta una bocha los BYTES
+    if (fread(&p, sizeof(cabecera_programa), 1, archivo) != 1) { // (CORREGIR)se toman los 0 como bytes y se aumenta una bocha los BYTES
         printf("Error al leer la cabecera del archivo\n");
         fclose(archivo);
         return -1;
