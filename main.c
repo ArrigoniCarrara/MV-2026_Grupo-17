@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "estructuras.c"
+#include "componentes.c"
 
 
 void imprimir_binario(unsigned char byte) {
@@ -27,7 +27,8 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    // Validar que sea un archivo VMX válido verificando la firma
+    p.tam_codigo = (p.tam_codigo >> 8) | (p.tam_codigo << 8); // Nuestro procesador trabaja con little endians y vmx utiliza big endians
+    // Validar que sea un archivo VMX 
     if (strncmp(p.identificador, "VMX26", 5) != 0 || p.version != 1) { 
         printf("Formato no válido: no se encontró la firma VMX26 o la version no es la correcta\n");
         fclose(archivo);
@@ -58,8 +59,14 @@ int main(int argc, char *argv[]) {
     tabla_seg[0].base = 0;  //Inicializamos tabla de segmentos
     tabla_seg[0].tam = p.tam_codigo;
     tabla_seg[1].base = p.tam_codigo;  //Tener en cuenta que en la segunda parte tendremos que calcularlo y no inicializarlo
-    tabla_seg[1].tam = TAM_MEMORIA - p.tam_codigo;
+    tabla_seg[1].tam = TAM_MEMORIA - p.tam_codigo; // Puede haber un error acá tam_codigo tiene valor erroneo
 
+    // Inicializamos Registros
+    registros[26] = tabla_seg[0].base; // CS
+    registros[27] = tabla_seg[1].base; // DS
+    registros[0] = registros[26]; // IP
+
+   
 
     fclose(archivo);
     return -1;
