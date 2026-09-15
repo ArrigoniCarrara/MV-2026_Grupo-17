@@ -3,7 +3,7 @@
 #define TAM_SEG 7
 #define CANT_REG 31
 
-unsigned char RAM[TAM_MEMORIA] = {0}; // Memoria principal
+unsigned char RAM[TAM_MEMORIA]; // Memoria principal
 
 typedef struct { 
 
