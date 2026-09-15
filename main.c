@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
     registros[27] = tabla_seg[1].base; // DS
     registros[0] = registros[26]; // IP
 
+    // Ciclo Principal
      while(registros[0] != tabla_seg[1].base && registros[0] != -1){
         buscooperacion(registros[0]);
         if (registros[0] != -1)
