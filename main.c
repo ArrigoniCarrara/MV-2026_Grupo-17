@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "componentes.c"
+#include "funciones.c"
 
 
 void imprimir_binario(unsigned char byte) {
