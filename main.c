@@ -42,7 +42,6 @@ int main(int argc, char *argv[]) {
     printf("Tamaño de código: %u bytes\n\n", p.tam_codigo);
 
     // Cargar el código máquina en la memoria RAM 
-    RAM[TAM_MEMORIA] = {0};
     size_t bytes_leidos = fread(RAM, sizeof(unsigned char), p.tam_codigo, archivo);// Lee directamente todo el codigo del archivo binario 
     printf("Bytes de código máquina cargados en RAM: %zu\n\n", bytes_leidos);         // en el vector RAM
 
