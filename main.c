@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
 
     // Ciclo Principal
      while(registros[0] != tabla_seg[1].base && registros[0] != -1){
-        buscooperacion(registros[0]);
+        buscooperacion(&registros[0]);
         if (registros[0] != -1)
            registros[0] = registros[0] + 1;
     }
