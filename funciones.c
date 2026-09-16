@@ -56,6 +56,36 @@ void dosOperandos(uint32_t registros[0]){
         // TipoOperacion[cod_op](tipoa, tipob, valora, valorb);
 } 
 
+void unOperando(uint32_t registros[0]){
+        unsigned char tipo_opa;
+        unsigned char tipo_opb;
+        unsigned char cod_op;
+        uint32_t valor_opa;
+        uint32_t valor_opb;
+
+        
+        tipo_opa = RAM[registros[0]] >> 6;
+        cod_op = RAM[registros[0]] & 0x0F;
+
+        valor_opa = p_tipo_op[tipo_opa]
+        // TipoOperacion[cod_op](tipoa, tipob, valora, valorb);
+} 
+
+
+void unOperando(uint32_t registros[0]){
+        unsigned char tipo_opa;
+        unsigned char tipo_opb;
+        unsigned char cod_op;
+        uint32_t valor_opa;
+        uint32_t valor_opb;
+
+        cod_op = RAM[registros[0]] & 0x0F;
+
+        valor_opa = p_tipo_op[tipo_opa]
+        // TipoOperacion[cod_op](tipoa, tipob, valora, valorb);
+} 
+
+
 
 void buscooperacion(uint32_t registros[0]){
         if((RAM[registros[0]] >> 4 & 0x01) == 1){
@@ -63,5 +93,5 @@ void buscooperacion(uint32_t registros[0]){
         }else if(RAM[registros[0]] >> 6 != 0){
             unOperando();
         }else
-             ningunoperando();
+             ningunOperando();
 }
