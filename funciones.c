@@ -1,13 +1,18 @@
-#include "main.c"
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "componentes.c"
+#include <componentes.c>
 
-uint32_t ninguno(){return 0x0} // ERROR
+uint32_t ninguno(uint32_t *ip){return 0x0;} // ERROR
 
-uint32_t registro(){
+uint32_t registro(uint32_t *ip){
         *ip = *ip + 1;
         return RAM[*ip];
 }
 
-uint32_t inmediato(){
+uint32_t inmediato(uint32_t *ip){
     *ip = *ip + 1;
 
     uint32_t aux = RAM[*ip];
@@ -19,7 +24,7 @@ uint32_t inmediato(){
     return aux;
 }
 
-uint32_t memoria(){
+uint32_t memoria(uint32_t *ip){
     *ip = *ip + 1;
 
     uint32_t aux = RAM[*ip];
@@ -36,8 +41,8 @@ uint32_t memoria(){
 }
 
 
- typedef uint32_t (*tipo_operando[4])(); // Vector de punteros a funciones para rescatar el valor de cada operando
- tipo_operando p_tipo_op = {ninguno, registro, inmediato, memoria} // y para mover correctamente el IP
+ typedef uint32_t (*tipo_operando[4])(uint32_t *); // Vector de punteros a funciones para rescatar el valor de cada operando
+ tipo_operando p_tipo_op = {ninguno, registro, inmediato, memoria}; // y para mover correctamente el IP
 
 void dosOperandos(uint32_t *ip){
         unsigned char tipo_opa;
@@ -46,12 +51,12 @@ void dosOperandos(uint32_t *ip){
         uint32_t valor_opa;
         uint32_t valor_opb;
 
-        tipo_opb = RAM[*ip] >> 6;
-        tipo_opa = RAM[*ip] >> 4;
+        tipo_opb = (RAM[*ip] >> 6) & 0x03;
+        tipo_opa = (RAM[*ip] >> 4) & 0x03;
         cod_op = RAM[*ip] & 0x1F;
 
-        valor_opa = p_tipo_op[tipo_opa]
-        valor_opb = p_tipo_op[tipo_opb]
+        valor_opa = p_tipo_op[tipo_opa](ip);
+        valor_opb = p_tipo_op[tipo_opb](ip);
 
         // TipoOperacion[cod_op](tipoa, tipob, valora, valorb);
 } 
@@ -64,10 +69,10 @@ void unOperando(uint32_t *ip){
         uint32_t valor_opb;
 
         
-        tipo_opa = RAM[*ip] >> 6;
+        tipo_opa = (RAM[*ip] >> 6) & 0x03;
         cod_op = RAM[*ip] & 0x0F;
 
-        valor_opa = p_tipo_op[tipo_opa]
+        valor_opa = p_tipo_op[tipo_opa](ip);
         // TipoOperacion[cod_op](tipoa, tipob, valora, valorb);
 } 
 
@@ -88,9 +93,9 @@ void ningunOperando(uint32_t *ip){
 
 void buscooperacion(uint32_t *ip){
         if((RAM[*ip] >> 4 & 0x01) == 1){
-            dosOperandos(*ip);
+            dosOperandos(ip);
         }else if(RAM[*ip] >> 6 != 0){
-            unOperando();
+            unOperando(ip);
         }else
-             ningunOperando();
+             ningunOperando(ip);
 }

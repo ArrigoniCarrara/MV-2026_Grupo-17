@@ -1,7 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "componentes.c"
+
+#include "funciones.c"
 
 
 void imprimir_binario(unsigned char byte) {
@@ -27,21 +25,20 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    // Validar que sea un archivo VMX válido verificando la firma
+    p.tam_codigo = (p.tam_codigo >> 8) | (p.tam_codigo << 8); // Nuestro procesador trabaja con little endians y vmx utiliza big endians
+    // Validar que sea un archivo VMX 
     if (strncmp(p.identificador, "VMX26", 5) != 0 || p.version != 1) { 
         printf("Formato no válido: no se encontró la firma VMX26 o la version no es la correcta\n");
         fclose(archivo);
         return -1;
     }
-    // Nuestra PC al tener intel/amd lo usa el modelo little endiand y el trad usa Big Endiand debemos realizar un corrimiento
-    p.tam_codigo = ( p.tam_codigo >> 8 ) | ( p.tam_codigo << 8 );
+
     printf("--- Cabecera VMX leída con éxito ---\n");
     printf("Identificador: %.5s\n", p.identificador);
     printf("Versión: %u\n", p.version);
-    printf("Tamaño de código: %u bytes\n\n", p.tam_codigo );
+    printf("Tamaño de código: %u bytes\n\n", p.tam_codigo);
 
     // Cargar el código máquina en la memoria RAM 
-    
     size_t bytes_leidos = fread(RAM, sizeof(unsigned char), p.tam_codigo, archivo);// Lee directamente todo el codigo del archivo binario 
     printf("Bytes de código máquina cargados en RAM: %zu\n\n", bytes_leidos);         // en el vector RAM
 
@@ -59,9 +56,21 @@ int main(int argc, char *argv[]) {
     tabla_seg[0].base = 0;  //Inicializamos tabla de segmentos
     tabla_seg[0].tam = p.tam_codigo;
     tabla_seg[1].base = p.tam_codigo;  //Tener en cuenta que en la segunda parte tendremos que calcularlo y no inicializarlo
-    tabla_seg[1].tam = TAM_MEMORIA - p.tam_codigo;
+    tabla_seg[1].tam = TAM_MEMORIA - p.tam_codigo; // Puede haber un error acá tam_codigo tiene valor erroneo
 
-    RAM[ 40 ] = 0;
+    // Inicializamos Registros
+    registros[26] = tabla_seg[0].base; // CS
+    registros[27] = tabla_seg[1].base; // DS
+    registros[0] = registros[26]; // IP
+
+    // Ciclo Principal
+     while(registros[0] != tabla_seg[1].base && registros[0] != -1){
+        buscooperacion(&registros[0]);
+        if (registros[0] != -1)
+           registros[0] = registros[0] + 1;
+    }
+
+   
     fclose(archivo);
     return -1;
 }
