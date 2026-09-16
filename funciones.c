@@ -81,7 +81,6 @@ void ningunOperando(uint32_t registros[0]){
 
         cod_op = RAM[registros[0]] & 0x0F;
 
-        valor_opa = p_tipo_op[tipo_opa]
         // TipoOperacion[cod_op](tipoa, tipob, valora, valorb);
 } 
 
