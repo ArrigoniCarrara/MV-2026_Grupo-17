@@ -72,7 +72,7 @@ void unOperando(uint32_t registros[0]){
 } 
 
 
-void unOperando(uint32_t registros[0]){
+void ningunOperando(uint32_t registros[0]){
         unsigned char tipo_opa;
         unsigned char tipo_opb;
         unsigned char cod_op;
