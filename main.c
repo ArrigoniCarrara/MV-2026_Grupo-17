@@ -59,15 +59,15 @@ int main(int argc, char *argv[]) {
     tabla_seg[1].tam = TAM_MEMORIA - p.tam_codigo; // Puede haber un error acá tam_codigo tiene valor erroneo
 
     // Inicializamos Registros
-    registros[26] = tabla_seg[0].base; // CS
-    registros[27] = tabla_seg[1].base; // DS
-    registros[0] = registros[26]; // IP
+    registros[CS] = tabla_seg[0].base; // CS
+    registros[DS] = tabla_seg[1].base; // DS
+    registros[IP] = registros[26]; // IP
 
     // Ciclo Principal
-     while(registros[0] != tabla_seg[1].base && registros[0] != -1){
-        buscooperacion(&registros[0]);
-        if (registros[0] != -1)
-           registros[0] = registros[0] + 1;
+     while(registros[OP1] != tabla_seg[1].base && registros[0] != -1){
+        buscoOperacion(&registros[0]);
+        if (registros[OP1] != -1)
+           registros[OP1] = registros[OP1] + 1;
     }
 
    
