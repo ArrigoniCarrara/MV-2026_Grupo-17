@@ -4,8 +4,45 @@
 #include "componentes.c"
 
 //Debo calcular direcciones logicas y fisicas cuando se haga una operacion en memoria
-  
-int buscaDireccionFisica( uint32_t valorOp ){
+/*
+Cada vez que se realiza una operación en la memoria, se debe cargar en el registro LAR la dirección
+lógica a la que se quiere acceder y la cantidad de bytes en la parte alta del registro MAR (los 2 bytes más
+significativos). Luego de realizar la traducción a una dirección física, el resultado debe almacenarse en la
+parte baja del registro MAR (los 2 bytes menos significativos). En el registro MBR debe quedar el valor con
+el cual se está operando, ya sea el valor que se desea almacenar en el caso de una escritura o el que se
+obtuvo después de la lectura. La lectura de la instrucción no debe modificar ninguno de estos registros.
+*/ 
+
+void escrituraEnMemoria( uint32_t valor, uint16_t cantBytes, uint32_t valorOp ){
+
+    int direccionEnMemoria = buscaDireccionFisica( valorOp, cantBytes );
+    if ( direccionEnMemoria != -1 ){
+            registros[MBR] = valor;
+            int aux = cantBytes*8;
+            for ( int i = direccionEnMemoria; i < direccionEnMemoria + cantBytes; i++  ){
+                aux -= 8;
+                RAM[i] = valor >> (aux-8) & 0xFF;
+            }
+    }        
+}
+// solo sirve para operanciones de dos operando, ya que si recupero dos valores siempre son de 4 bytes ( variable valor )
+int lecturaEnMemoria( uint32_t valorOp, uint32_t cantBytes ){
+    int direccionEnMemoria = buscaDireccionFisica( valorOp,cantBytes );
+    if ( direccionEnMemoria != -1 ){
+        int valor = 0;
+        int aux = cantBytes*8;
+        for ( int i = direccionEnMemoria; i < direccionEnMemoria + cantBytes; i++ ){
+            aux -= 8;
+            valor = valor | (RAM[i] << aux);// es un OR acumulativo
+
+        }       
+        registros[MBR] = valor;
+        return valor;
+    }
+
+}
+
+int buscaDireccionFisica( uint32_t valorOp, uint32_t cantBytes ){// lo maximo que puede ser son 3 bytes de valorOp
     uint8_t codReg = valorOp & 0x00001F;//rescato el codigo de registro
     int offset = valorOp >> 8 ;
     if ( codReg != DS ){
@@ -13,10 +50,13 @@ int buscaDireccionFisica( uint32_t valorOp ){
     }
     registros[LAR] = 0x00010000;
     registros[LAR] += offset;// lo que pone literalmente en el pdf
-    // MAR = la cantidad de bytes que vamos a leer, nos pasamos a esta funcion el valor del opA y opB
+    // la operacion al ser MOV se lee o se escribe de a 4 bytes
+    registros[MAR] = cantBytes;
+    registros[MAR] = registros[MAR] << 16;
     int direFisica = tabla_seg[1].base + offset;
     int aux = registros[MAR] >> 16;
-
+    uint16_t parteBaja = direFisica;
+    registros[MAR] = (registros[MAR] & 0xFFFF0000 ) | parteBaja;
     if ( (tabla_seg[1].tam + tabla_seg[1].base < direFisica + aux) || (direFisica < tabla_seg[1].tam) ){
         printf( "Te fuiste del segmento capo" );
         return -1;
