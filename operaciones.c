@@ -12,7 +12,29 @@ parte baja del registro MAR (los 2 bytes menos significativos). En el registro M
 el cual se está operando, ya sea el valor que se desea almacenar en el caso de una escritura o el que se
 obtuvo después de la lectura. La lectura de la instrucción no debe modificar ninguno de estos registros.
 */ 
+int buscaDireccionFisica( uint32_t valorOp, uint32_t cantBytes ){// lo maximo que puede ser son 3 bytes de valorOp
+    uint8_t codReg = valorOp & 0x00001F;//rescato el codigo de registro
+    int offset = valorOp >> 8 ;
+    if ( codReg != DS ){
+        offset += registros[codReg];
+    }
+    int direFisica = tabla_seg[1].base + offset;
+    if ( (tabla_seg[1].tam + tabla_seg[1].base < direFisica + cantBytes) || (direFisica < tabla_seg[1].base) ){
+        printf( "Te fuiste del segmento capo\n" );
+        return -1;
+    }
+    else{
+        uint16_t parteBaja = direFisica;
+        registros[MAR] = cantBytes;
+        registros[MAR] = registros[MAR] << 16;
+        registros[LAR] = 0x00010000;
+        registros[LAR] += offset;
+        registros[MAR] = (registros[MAR] & 0xFFFF0000 ) | parteBaja;
 
+        printf("Aca se muestra la direccion fisica a la que se accedio: \n", direFisica, "\n");
+        return direFisica;
+    }
+}
 void escrituraEnMemoria( uint32_t valor, uint16_t cantBytes, uint32_t valorOp ){
 
     int direccionEnMemoria = buscaDireccionFisica( valorOp, cantBytes );
@@ -21,7 +43,8 @@ void escrituraEnMemoria( uint32_t valor, uint16_t cantBytes, uint32_t valorOp ){
             int aux = cantBytes*8;
             for ( int i = direccionEnMemoria; i < direccionEnMemoria + cantBytes; i++  ){
                 aux -= 8;
-                RAM[i] = valor >> (aux-8) & 0xFF;
+                RAM[i] = valor >> (aux) & 0xFF;// dado el valor viene en 32 bits debo hacer determinada logica
+                printf( " se escribe el valor: %02X\n", RAM[i] );
             }
     }        
 }
@@ -42,61 +65,31 @@ int lecturaEnMemoria( uint32_t valorOp, uint32_t cantBytes ){
 
 }
 
-int buscaDireccionFisica( uint32_t valorOp, uint32_t cantBytes ){// lo maximo que puede ser son 3 bytes de valorOp
-    uint8_t codReg = valorOp & 0x00001F;//rescato el codigo de registro
-    int offset = valorOp >> 8 ;
-    if ( codReg != DS ){
-        offset += registros[codReg];
+
+void MOV( unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int valor;
+    if ( tipoOpB == 0x03 ){// si es un operando de memoria voy a tener que ir a buscar el valor
+        valor = lecturaEnMemoria( valorB, 4 );
     }
-    registros[LAR] = 0x00010000;
-    registros[LAR] += offset;// lo que pone literalmente en el pdf
-    // la operacion al ser MOV se lee o se escribe de a 4 bytes
-    registros[MAR] = cantBytes;
-    registros[MAR] = registros[MAR] << 16;
-    int direFisica = tabla_seg[1].base + offset;
-    int aux = registros[MAR] >> 16;
-    uint16_t parteBaja = direFisica;
-    registros[MAR] = (registros[MAR] & 0xFFFF0000 ) | parteBaja;
-    if ( (tabla_seg[1].tam + tabla_seg[1].base < direFisica + aux) || (direFisica < tabla_seg[1].tam) ){
-        printf( "Te fuiste del segmento capo" );
-        return -1;
+    else
+        if( tipoOpB == 0x01 ){
+            uint8_t nroRegistroOpB = valorB & 0x0000001F;
+            valor = registros[nroRegistroOpB];
+        }
+        else
+            valor = valorB;
+
+    if ( tipoOpA == 0x03 ){// si es un operando de memoria voy a tener que ir a escribir 
+        escrituraEnMemoria( valor, 4, valorA );
     }
     else{
-        return direFisica;
+        // no nos atajamos si nos viene un opA inmediato.
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+        registros[nroRegistroA] = valor; 
     }
-
-    
-
+    printf(" Valor que se va a asignar en memoria o en registro \n");
+    printf("%d al valor que se accedio es:  \n", valor );
 }
-
-void MOV( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){
-    if ( opA == 0x01 && (opB == 0b01  || opB == 0b10) ){ // si donde voy a guardar es un dato y lo que guardo es un registro o inmediato entro:
-        uint8_t nroRegistro = opA & 0b00011111;         
-        if ( opB == 0x02 )
-            registros[ nroRegistro ] = valorB;
-        else{// el dato que voy a guardar viene en un registro
-            // en valorB deberia venir el nro del registro?? preguntar a gian
-            uint8_t nroRegistroOpB = valorB & 0x0000001F; // valorB al tener 32 bits y como solo me importa el primer byte ya que le debo sacar los 3 bits mas significativos aplico una mascara
-            registros[ nroRegistro ] = nroRegistroOpB;
-        }
-    }
-    else{ // es una operacion en memoria
-        if ( opB == 0b11 ){
-            // voy a buscar donde esta opB            
-
-        }
-        else{
-            // voy a buscar donde esta opA
-
-        }
-            
-
-    }
-    
-
-
-}
-
 void ADD( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
 
 void SUB( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
@@ -115,8 +108,6 @@ void XOR( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB
 
 void SWAP( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
 
-void SWAP( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
-
 void SHL( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
 
 void SHR( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
@@ -129,5 +120,5 @@ void LDH( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB
 
 void RND( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
 
-void ( *operacionesDosOperanDosOperando[ 16 ] )(unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ) 
+void ( *operacionesDosOperando[ 16 ] )(unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ) 
 = { MOV, ADD, SUB, MUL, DIV, CMP, AND, OR, XOR, SWAP, SHL, SHR, SAR, LDL, LDH, RND };

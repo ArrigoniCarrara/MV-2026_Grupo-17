@@ -51,8 +51,8 @@ void dosOperandos(uint32_t *ip){
         tipo_opa = (RAM[*ip] >> 4) & 0x03; // obtengo el bit 3 y 4 mas significativo
         cod_op = RAM[*ip] & 0x1F;// obtengo los 5 bits menos significativos
 
-        valor_opa = p_tipo_op[tipo_opa](ip);
         valor_opb = p_tipo_op[tipo_opb](ip);
+        valor_opa = p_tipo_op[tipo_opa](ip);
 
         registros[OPC] = cod_op;//OPC = codigo de operacion
         
@@ -66,7 +66,8 @@ void dosOperandos(uint32_t *ip){
         registros[OP2] = tipo_opb;// OP2 = operando B
         registros[OP2] = registros[OP2] << 24;
         registros[OP2] = registros[OP2] | valor_opb;
-        // tipoOperacionDosOperando[cod_op](tipoa, tipob, valora, valorb);
+        cod_op = cod_op & 0b0001111;
+        operaciones[cod_op](tipo_opa, tipo_opb, valor_opa, valor_opb);
 } 
 
 void unOperando(uint32_t *ip){

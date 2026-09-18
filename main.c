@@ -64,12 +64,12 @@ int main(int argc, char *argv[]) {
     registros[IP] = registros[26]; // IP
 
     // Ciclo Principal
-     while(registros[OP1] != tabla_seg[1].base && registros[0] != -1){
-        buscoOperacion(&registros[0]);
-        if (registros[OP1] != -1)
-           registros[OP1] = registros[OP1] + 1;
+    while(registros[IP] < tabla_seg[1].base && registros[IP] != -1){
+        buscoOperacion(&registros[IP]);
+        printf("------------\n");
+        if (registros[IP] != -1)
+           registros[IP] = registros[IP] + 1;
     }
-
    
     fclose(archivo);
     return -1;
