@@ -3,15 +3,28 @@
 #include <string.h>
 #include "componentes.c"
 
-//Debo calcular direcciones logicas y fisicas cuando se haga una operacion en memoria
-/*
-Cada vez que se realiza una operación en la memoria, se debe cargar en el registro LAR la dirección
-lógica a la que se quiere acceder y la cantidad de bytes en la parte alta del registro MAR (los 2 bytes más
-significativos). Luego de realizar la traducción a una dirección física, el resultado debe almacenarse en la
-parte baja del registro MAR (los 2 bytes menos significativos). En el registro MBR debe quedar el valor con
-el cual se está operando, ya sea el valor que se desea almacenar en el caso de una escritura o el que se
-obtuvo después de la lectura. La lectura de la instrucción no debe modificar ninguno de estos registros.
-*/ 
+#define BIT_N 31
+#define BIT_Z 30
+#define BIT_C 29
+#define BIT_V 28
+
+
+void actualizarCC(uint32_t valor, int c, int v){
+    registros[CC] = 0;
+    int n = 0;
+    int z = 0;
+
+    if (valor < 1)
+        n = 1;
+    if (valor == 0)
+        n = 1;
+
+    registros[CC] |= (uint32_t)(n!=0) << BIT_N;
+    registros[CC] |= (uint32_t)(z!=0) << BIT_Z;
+    registros[CC] |= (uint32_t)(c!=0) << BIT_C;
+    registros[CC] |= (uint32_t)(v!=0) << BIT_V;
+}
+
 int buscaDireccionFisica( uint32_t valorOp, uint32_t cantBytes ){// lo maximo que puede ser son 3 bytes de valorOp
     uint8_t codReg = valorOp & 0x00001F;//rescato el codigo de registro
     int offset = valorOp >> 8 ;
@@ -87,9 +100,8 @@ void MOV( unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_
         uint8_t nroRegistroA = valorA & 0x000000FF;
         registros[nroRegistroA] = valor; 
     }
-    printf(" Valor que se va a asignar en memoria o en registro \n");
-    printf("%d\n", valor );
 }
+
 void ADD( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
 
 void SUB( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
@@ -144,7 +156,9 @@ void NOT ( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valor
 
 void ERROR ( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
 
-void STOP( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void STOP( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){
+    registros[IP] = -1;
+}
 
 void ( *operaciones[ 32 ] )(unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ) 
 = { SYS, JMP, JP, JN, JZ, JC, JV, JNP, JNN, JNZ, NOT, ERROR, ERROR, ERROR, ERROR, STOP, MOV, ADD, SUB, MUL, DIV, CMP, AND, OR, XOR, SWAP, SHL, SHR, SAR, LDL, LDH, RND };

@@ -8,7 +8,7 @@ uint32_t registro(uint32_t *ip){
         *ip = *ip + 1;
         return RAM[*ip];
 }
-//  porque no es de 16 bits? porque tenemos hardware mejor que el de los 80s
+
 uint32_t inmediato(uint32_t *ip){
     *ip = *ip + 1;
 
@@ -55,9 +55,6 @@ void dosOperandos(uint32_t *ip){
         valor_opa = p_tipo_op[tipo_opa](ip);
 
         registros[OPC] = cod_op;//OPC = codigo de operacion
-        
-        printf("CODIGO DE OPERACION \n");
-        printf( "%02X \n",cod_op  );
         // Debo poner en el byte mas significativo el codigo del operando y en el resto el valor del operando
 
         registros[OP1] = tipo_opa; //OP1 = operando A
@@ -91,7 +88,8 @@ void unOperando(uint32_t *ip){
         registros[OP1] = registros[OP1] << 24;
         registros[OP1] = registros[OP1] | valor_opa;
         registros[OP2] = tipo_opb;// OP2 = operando B
-        // tipoOperacionUnOperando[cod_op](tipoa, tipob, valora, valorb);
+
+        operaciones[cod_op](tipo_opa, tipo_opb, valor_opa, valor_opb);
 } 
 
 
@@ -107,7 +105,8 @@ void ningunOperando(uint32_t *ip){
         printf("CODIGO DE OPERACION  \n");
         printf( "%02X \n",cod_op  );
         registros[1] = cod_op;// codigo de operacion
-       // tipoOperacionMingunOperando[cod_op](tipoa, tipob, valora, valorb);
+        
+       operaciones[cod_op](tipo_opa, tipo_opb, valor_opa, valor_opb);
 } 
 
 
