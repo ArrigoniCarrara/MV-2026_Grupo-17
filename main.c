@@ -61,16 +61,15 @@ int main(int argc, char *argv[]) {
     // Inicializamos Registros
     registros[CS] = tabla_seg[0].base; // CS
     registros[DS] = tabla_seg[1].base; // DS
-    registros[IP] = registros[26]; // IP
+    registros[IP] = registros[CS]; // IP
 
     // Ciclo Principal
-     while(registros[OP1] != tabla_seg[1].base && registros[0] != -1){
-        buscoOperacion(&registros[0]);
-        if (registros[OP1] != -1)
-           registros[OP1] = registros[OP1] + 1;
+     while(registros[IP] < tabla_seg[1].base && registros[IP] != -1){
+        buscoOperacion(&registros[IP]);
+        if (registros[IP] != -1)
+           registros[IP] = registros[IP] + 1;
     }
 
-   
     fclose(archivo);
-    return -1;
+    return 1;
 }
