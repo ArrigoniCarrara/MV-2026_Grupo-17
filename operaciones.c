@@ -11,13 +11,8 @@
 
 void actualizarCC(uint32_t valor, int c, int v){
     registros[CC] = 0;
-    int n = 0;
-    int z = 0;
-
-    if (valor < 1)
-        n = 1;
-    if (valor == 0)
-        n = 1;
+    int n = (int32_t)valor < 0;   // reinterpretar como signed
+    int z = (valor == 0);
 
     registros[CC] |= (uint32_t)(n!=0) << BIT_N;
     registros[CC] |= (uint32_t)(z!=0) << BIT_Z;
@@ -102,59 +97,399 @@ void MOV( unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_
     }
 }
 
-void ADD( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
 
-void SUB( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void ADD( unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int valor;
+    if ( tipoOpB == 0x03 ){
+        valor = lecturaEnMemoria( valorB, 4 );
+    }
+    else 
+        if(tipoOpB == 0x01 ){
+             uint8_t nroRegistroOpB = valorB & 0x0000001F;
+             valor = registros[ nroRegistroOpB ];
+        }
+        else
+            valor = valorB;
+    if( tipoOpA == 0x03 ){
+        int valorBuscado = lecturaEnMemoria( valorA, 4 );
+        escrituraEnMemoria(valorBuscado + valor,4, valorA );
+    }
+    else{
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+         registros[nroRegistroA] += valor; 
+    }
+}
 
-void MUL( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void SUB( unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+        int valor;
+    if ( tipoOpB == 0x03 ){
+        valor = lecturaEnMemoria( valorB, 4 );
+    }
+    else 
+        if(tipoOpB == 0x01 ){
+             uint8_t nroRegistroOpB = valorB & 0x0000001F;
+             valor = registros[ nroRegistroOpB ];
+        }
+        else
+            valor = valorB;
+    if( tipoOpA == 0x03 ){
+        int valorBuscado = lecturaEnMemoria( valorA, 4 );
+        escrituraEnMemoria( valorBuscado - valor,4, valorA );
+    }
+    else{
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+         registros[nroRegistroA] -= valor; 
+    }
+}
 
-void DIV ( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int valor;
+    if ( tipoOpB == 0x03 ){
+        valor = lecturaEnMemoria( valorB, 4 );
+    }
+    else 
+        if(tipoOpB == 0x01 ){
+             uint8_t nroRegistroOpB = valorB & 0x0000001F;
+             valor = registros[ nroRegistroOpB ];
+        }
+        else
+            valor = valorB;
+    if( tipoOpA == 0x03 ){
+        int valorBuscado = lecturaEnMemoria( valorA, 4 );
+        escrituraEnMemoria( valorBuscado * valor, 4, valorA );
+    }
+    else{
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+         registros[nroRegistroA] *= valor; 
+    }
+}
 
-void CMP( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int valor;
+    if ( tipoOpB == 0x03 ){
+        valor = lecturaEnMemoria( valorB, 4 );
+    }
+    else 
+        if(tipoOpB == 0x01 ){
+             uint8_t nroRegistroOpB = valorB & 0x0000001F;
+             valor = registros[ nroRegistroOpB ];
+        }
+        else
+            valor = valorB;
 
-void AND( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+    if(valor == 0)
+        printf("Division por cero flaco");
+    else{
+        if( tipoOpA == 0x03 ){
+            int valorBuscado = lecturaEnMemoria( valorA, 4 );
+            escrituraEnMemoria( valorBuscado / valor, 4, valorA );
+        }
+        else{
+            uint8_t nroRegistroA = valorA & 0x000000FF;
+            registros[nroRegistroA] /= valor; 
+        }
+    }
+}
 
-void OR( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void CMP(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int valor, valorBuscado;
+    if ( tipoOpB == 0x03 ){
+        valor = lecturaEnMemoria( valorB, 4 );
+    }
+    else 
+        if(tipoOpB == 0x01 ){
+             uint8_t nroRegistroOpB = valorB & 0x0000001F;
+             valor = registros[ nroRegistroOpB ];
+        }
+        else
+            valor = valorB;
+    
+    if( tipoOpA == 0x03 ){
+        valorBuscado = lecturaEnMemoria( valorA, 4 );
+    }
+    else{
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+         valorBuscado = registros[nroRegistroA]; 
+    }
 
-void XOR( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+    uint32_t opB = ~valor + 1;                       // complemento a 2 de B
+    uint64_t resta = (uint64_t)valorBuscado + (uint64_t)opB;   // suma, no resta directa
+    uint32_t resultado = (uint32_t)resta;
+    int c = resta > 0xFFFFFFFFULL;
+    int v = ((~(valorBuscado ^ opB)) & (valorBuscado ^ resultado)) >> 31 & 1;
 
-void SWAP( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+    actualizarCC(resta, c, v);
+}
 
-void SHL( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void AND(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    if ( tipoOpB ==0x03 ){
+        
 
-void SHR( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+    }
 
-void SAR( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+}
 
-void LDL( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void OR(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){}
 
-void LDH( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void XOR( unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){}
 
-void RND( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void SWAP(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){}
 
-void SYS( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){}
 
-void JMP( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void SHR(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){}
 
-void JP( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void SAR(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){}
 
-void JN ( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void LDL(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){}
 
-void JZ ( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void LDH(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){}
 
-void JC ( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void RND(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){}
 
-void JV ( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    uint32_t dire_memoria = registros[EDX]; // Donde empiezo a leer o escribir
+    uint16_t cant_valores = registros[ECX] & 0x00FF;
+    uint16_t cantbytes = registros[ECX] >> 16;
+    uint8_t modo_lectura = registros[EAX];
+    if(valorA == 1){
+    }
+}
 
-void JNP ( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void JMP( unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int valor;
+    if( tipoOpA == 0x03 ){
+        valor = lecturaEnMemoria( valorA, 4 );
+    }
+    else if (tipoOpA == 0x01){
+         uint8_t nroRegistroA = valorA & 0x000000FF;
+         valor = registros[nroRegistroA]; 
+    } else{
+        valor = valorA;
+    }
 
-void JNN ( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+    if(valor <= tabla_seg[0].tam)
+        registros[IP] = valor;
+    else{
+        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+    }
+}
 
-void JNZ ( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+void JP( unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int  n = (registros[CC] >> 31) & 1;
+    int  z = (registros[CC] >> 30) & 1;
 
-void NOT ( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+    if(n == 0 && z == 0){
 
-void ERROR ( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){}
+        int valor;
+        if( tipoOpA == 0x03 ){
+        valor = lecturaEnMemoria( valorA, 4 );
+    }
+    else if (tipoOpA == 0x01){
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+         valor = registros[nroRegistroA]; 
+    }else{
+        valor = valorA;
+    }
+
+    if(valor <= tabla_seg[0].tam)
+        registros[IP] = valor;
+    else{
+        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+    }
+
+    }
+     
+}
+
+void JN (  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int  n = (registros[CC] >> 31) & 1;
+
+    if(n == 1){
+        
+        int valor;
+        if( tipoOpA == 0x03 ){
+        valor = lecturaEnMemoria( valorA, 4 );
+    }
+    else if (tipoOpA == 0x01){
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+         valor = registros[nroRegistroA]; 
+    }else{
+        valor = valorA;
+    }
+
+    if(valor <= tabla_seg[0].tam)
+        registros[IP] = valor;
+    else{
+        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+    }
+
+    }
+}
+
+void JZ (  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int  z = (registros[CC] >> 30) & 1;
+
+    if(z == 1){
+        int valor;
+        if( tipoOpA == 0x03 ){
+        valor = lecturaEnMemoria( valorA, 4 );
+    }
+    else if (tipoOpA == 0x01){
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+         valor = registros[nroRegistroA]; 
+    }else{
+        valor = valorA;
+    }
+
+    if(valor <= tabla_seg[0].tam)
+        registros[IP] = valor;
+    else{
+        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+    }
+
+    }
+}
+
+void JC (  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int c = (registros[CC] >> 29) & 1;
+    if(c == 1){
+    
+        int valor;
+        if( tipoOpA == 0x03 ){
+        valor = lecturaEnMemoria( valorA, 4 );
+    }
+    else if (tipoOpA == 0x01){
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+         valor = registros[nroRegistroA]; 
+    }else{
+        valor = valorA;
+    }
+    if(valor <= tabla_seg[0].tam)
+        registros[IP] = valor;
+    else{
+        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+    }
+
+    }
+}
+
+void JV (  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int v = (registros[CC] >> 28) & 1;
+    if(v == 1){
+    
+        int valor;
+        if( tipoOpA == 0x03 ){
+        valor = lecturaEnMemoria( valorA, 4 );
+    }
+    else if (tipoOpA == 0x01){
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+         valor = registros[nroRegistroA]; 
+    }else{
+        valor = valorA;
+    }
+
+    if(valor <= tabla_seg[0].tam)
+        registros[IP] = valor;
+    else{
+        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+    }
+
+    }
+}
+
+void JNP (  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int  n = (registros[CC] >> 31) & 1;
+    int  z = (registros[CC] >> 30) & 1;
+
+    if(n == 1 || z == 1){
+
+        int valor;
+        if( tipoOpA == 0x03 ){
+        valor = lecturaEnMemoria( valorA, 4 );
+    }
+    else if (tipoOpA == 0x01){
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+         valor = registros[nroRegistroA]; 
+    }else{
+        valor = valorA;
+    }
+
+    if(valor <= tabla_seg[0].tam)
+        registros[IP] = valor;
+    else{
+        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+    }
+
+    }
+}
+
+void JNN (  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+    int  n = (registros[CC] >> 31) & 1;
+
+    if(n == 0){
+
+        int valor;
+        if( tipoOpA == 0x03 ){
+        valor = lecturaEnMemoria( valorA, 4 );
+    }
+    else if (tipoOpA == 0x01){
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+         valor = registros[nroRegistroA]; 
+    }else{
+        valor = valorA;
+    }
+
+    if(valor <= tabla_seg[0].tam)
+        registros[IP] = valor;
+    else{
+        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+    }
+
+    }
+}
+
+void JNZ (  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+     int  z = (registros[CC] >> 30) & 1;
+
+    if(z == 0){
+
+        int valor;
+        if( tipoOpA == 0x03 ){
+        valor = lecturaEnMemoria( valorA, 4 );
+    }
+    else if (tipoOpA == 0x01){
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+         valor = registros[nroRegistroA]; 
+    }else{
+        valor = valorA;
+    }
+
+    if(valor <= tabla_seg[0].tam)
+        registros[IP] = valor;
+    else{
+        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+    }
+
+    }
+}
+
+void NOT ( unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
+        int valor;
+        if( tipoOpA == 0x03 ){
+            valor = lecturaEnMemoria( valorA, 4 );
+            valor = ~valor;
+            escrituraEnMemoria(valor, 4, valorA);
+        }
+        else if (tipoOpA == 0x01){
+            uint8_t nroRegistroA = valorA & 0x000000FF;
+            valor = registros[nroRegistroA]; 
+        }else
+            valor = valorA;
+        
+}
+
+void ERROR (  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){}// ver manejos de errores despues
 
 void STOP( unsigned char opA, unsigned char opB, uint32_t valorA, uint32_t valorB ){
     registros[IP] = -1;

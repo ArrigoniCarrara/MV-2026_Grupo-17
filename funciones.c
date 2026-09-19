@@ -69,7 +69,7 @@ void dosOperandos(uint32_t *ip){
 
 void unOperando(uint32_t *ip){
         unsigned char tipo_opa;
-        unsigned char tipo_opb;
+        unsigned char tipo_opb = 0; // no hay operando b en un operando
         unsigned char cod_op;
         uint32_t valor_opa = 0x0;
         uint32_t valor_opb = 0x0;
@@ -110,7 +110,6 @@ void ningunOperando(uint32_t *ip){
 } 
 
 
-// preguntar a gian si buscaOperacion deja el IP en la proxima instruccion
 void buscoOperacion(uint32_t *ip){
         if((RAM[*ip] >> 4 & 0x01) == 1){
             dosOperandos(ip);

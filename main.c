@@ -70,6 +70,8 @@ int main(int argc, char *argv[]) {
            registros[IP] = registros[IP] + 1;
     }
 
+    printf("%d", registros[CC]);
+
     fclose(archivo);
     return 1;
 }
