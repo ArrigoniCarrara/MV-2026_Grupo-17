@@ -102,7 +102,6 @@ int main(int argc, char *argv[]) {
     printf("CS  : %08X | DS  : %08X\n", registros[CS], registros[DS]);
     printf("================================================\n");
 
-
     fclose(archivo);
     return 1;
 }

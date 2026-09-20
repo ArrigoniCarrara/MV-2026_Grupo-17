@@ -1,34 +1,17 @@
 #include "operaciones.c"
 
-uint32_t ninguno(uint32_t *ip){return 0x0;} // ERROR
+int32_t ninguno(int32_t *ip){return 0x0;} // ERROR
 
 
-
-uint32_t registro(uint32_t *ip){
+int32_t registro(int32_t *ip){
         *ip = *ip + 1;
         return RAM[*ip];
 }
 
-uint32_t inmediato(uint32_t *ip){
+int32_t inmediato(int32_t *ip){
     *ip = *ip + 1;
 
-    uint32_t aux = RAM[*ip];
-    *ip = *ip + 1;
-
-    aux = aux << 8;
-    aux = aux | RAM[*ip];
-
-    return aux;
-}
-
-uint32_t memoria(uint32_t *ip){
-    *ip = *ip + 1;
-
-    uint32_t aux = RAM[*ip];
-    *ip = *ip + 1;
-
-    aux = aux << 8;
-    aux = aux | RAM[*ip];
+    int16_t aux = RAM[*ip];
     *ip = *ip + 1;
 
     aux = aux << 8;
@@ -37,15 +20,31 @@ uint32_t memoria(uint32_t *ip){
     return aux;
 }
 
- typedef uint32_t (*tipo_operando[4])(uint32_t *); // Vector de punteros a funciones para rescatar el valor de cada operando
+int32_t memoria(int32_t *ip){
+    *ip = *ip + 1;
+
+    int32_t aux = RAM[*ip];
+    *ip = *ip + 1;
+
+    aux = aux << 8;
+    aux = aux | RAM[*ip];
+    *ip = *ip + 1;
+
+    aux = aux << 8;
+    aux = aux | RAM[*ip];
+
+    return aux;
+}
+
+ typedef int32_t (*tipo_operando[4])(int32_t *); // Vector de punteros a funciones para rescatar el valor de cada operando
  tipo_operando p_tipo_op = {ninguno, registro, inmediato, memoria}; // y para mover correctamente el IP
 
-void dosOperandos(uint32_t *ip){
+void dosOperandos(int32_t *ip){
         unsigned char tipo_opa;
         unsigned char tipo_opb;
         unsigned char cod_op;
-        uint32_t valor_opa = 0x0;
-        uint32_t valor_opb = 0x0;
+        int32_t valor_opa = 0x0;
+        int32_t valor_opb = 0x0;
 
         tipo_opb = (RAM[*ip] >> 6) & 0x03;// obtengo los dos bits mas significativos
         tipo_opa = (RAM[*ip] >> 4) & 0x03; // obtengo el bit 3 y 4 mas significativo
@@ -68,12 +67,12 @@ void dosOperandos(uint32_t *ip){
         operaciones[cod_op](tipo_opa, tipo_opb, valor_opa, valor_opb);
 } 
 
-void unOperando(uint32_t *ip){
+void unOperando(int32_t *ip){
         unsigned char tipo_opa;
         unsigned char tipo_opb = 0; // no hay operando b en un operando
         unsigned char cod_op;
-        uint32_t valor_opa = 0x0;
-        uint32_t valor_opb = 0x0;
+        int32_t valor_opa = 0x0;
+        int32_t valor_opb = 0x0;
 
         
         tipo_opa = (RAM[*ip] >> 6) & 0x03;
@@ -92,12 +91,12 @@ void unOperando(uint32_t *ip){
 } 
 
 
-void ningunOperando(uint32_t *ip){
+void ningunOperando(int32_t *ip){
         unsigned char tipo_opa;
         unsigned char tipo_opb;
         unsigned char cod_op;
-        uint32_t valor_opa = 0;
-        uint32_t valor_opb = 0;
+        int32_t valor_opa = 0;
+        int32_t valor_opb = 0;
 
         cod_op = RAM[*ip] & 0x0F;
         registros[1] = cod_op;// codigo de operacion
@@ -106,7 +105,7 @@ void ningunOperando(uint32_t *ip){
 } 
 
 
-void buscoOperacion(uint32_t *ip){
+void buscoOperacion(int32_t *ip){
     printf("\n------------------------------------------------\n");
     printf("[TRACE] Ejecutando IP: %04X | Opcode RAW: %02X\n", *ip, RAM[*ip]);
         if((RAM[*ip] >> 4 & 0x01) == 1){
