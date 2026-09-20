@@ -9,17 +9,6 @@
 #define BIT_V 28
 
 
-void actualizarCC(uint32_t valor, int c, int v){
-    registros[CC] = 0;
-    int n = (int32_t)valor < 0;   // reinterpretar como signed
-    int z = (valor == 0);
-
-    registros[CC] |= (uint32_t)(n!=0) << BIT_N;
-    registros[CC] |= (uint32_t)(z!=0) << BIT_Z;
-    registros[CC] |= (uint32_t)(c!=0) << BIT_C;
-    registros[CC] |= (uint32_t)(v!=0) << BIT_V;
-}
-
 int buscaDireccionFisica( uint32_t valorOp, uint32_t cantBytes ){// lo maximo que puede ser son 3 bytes de valorOp
     uint8_t codReg = valorOp & 0x00001F;//rescato el codigo de registro
     int offset = valorOp >> 8 ;
@@ -39,8 +28,6 @@ int buscaDireccionFisica( uint32_t valorOp, uint32_t cantBytes ){// lo maximo qu
         registros[LAR] += offset;
         registros[MAR] = (registros[MAR] & 0xFFFF0000 ) | parteBaja;
 
-        printf(" Aca se muestra la direccion fisica a la que se accedio \n");
-        printf("%d\n", direFisica);
         return direFisica;
     }
 }
@@ -50,6 +37,7 @@ void escrituraEnMemoria( uint32_t valor, uint16_t cantBytes, uint32_t valorOp ){
     if ( direccionEnMemoria != -1 ){
             registros[MBR] = valor;
             int aux = cantBytes*8;
+            printf("[MEMORIA] Escribiendo %d bytes en Dir Física [%04X]: Valor %08X\n", cantBytes, direccionEnMemoria, valor);
             for ( int i = direccionEnMemoria; i < direccionEnMemoria + cantBytes; i++  ){
                 aux -= 8;
                 RAM[i] = valor >> (aux) & 0xFF;// dado el valor viene en 32 bits debo hacer determinada logica
@@ -68,6 +56,7 @@ int lecturaEnMemoria( uint32_t valorOp, uint32_t cantBytes ){
 
         }       
         registros[MBR] = valor;
+        printf("[MEMORIA] Leyendo %d bytes desde Dir Física [%04X]: Valor obtenido %08X\n", cantBytes, direccionEnMemoria, valor);
         return valor;
     }
 
@@ -110,13 +99,16 @@ void ADD( unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_
         }
         else
             valor = valorB;
+
     if( tipoOpA == 0x03 ){
         int valorBuscado = lecturaEnMemoria( valorA, 4 );
         escrituraEnMemoria(valorBuscado + valor,4, valorA );
+        printf("%d\n", valorBuscado + valor);
     }
     else{
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x000000FF; // PREGUNTAR A NACHI Q ONDA
          registros[nroRegistroA] += valor; 
+         printf("%d\n",  registros[nroRegistroA]);
     }
 }
 
@@ -135,10 +127,12 @@ void SUB( unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_
     if( tipoOpA == 0x03 ){
         int valorBuscado = lecturaEnMemoria( valorA, 4 );
         escrituraEnMemoria( valorBuscado - valor,4, valorA );
+        printf("%d\n", valorBuscado - valor);
     }
     else{
         uint8_t nroRegistroA = valorA & 0x000000FF;
          registros[nroRegistroA] -= valor; 
+         printf("%d\n",  registros[nroRegistroA]);
     }
 }
 
@@ -157,10 +151,12 @@ void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32
     if( tipoOpA == 0x03 ){
         int valorBuscado = lecturaEnMemoria( valorA, 4 );
         escrituraEnMemoria( valorBuscado * valor, 4, valorA );
+        printf("%d\n", valorBuscado * valor);
     }
     else{
         uint8_t nroRegistroA = valorA & 0x000000FF;
          registros[nroRegistroA] *= valor; 
+         printf("%d\n",  registros[nroRegistroA]);
     }
 }
 
@@ -183,10 +179,12 @@ void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint3
         if( tipoOpA == 0x03 ){
             int valorBuscado = lecturaEnMemoria( valorA, 4 );
             escrituraEnMemoria( valorBuscado / valor, 4, valorA );
+            printf("%d\n", valorBuscado / valor);
         }
         else{
             uint8_t nroRegistroA = valorA & 0x000000FF;
             registros[nroRegistroA] /= valor; 
+            printf("%d\n",  registros[nroRegistroA]);
         }
     }
 }
@@ -211,14 +209,7 @@ void CMP(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32
         uint8_t nroRegistroA = valorA & 0x000000FF;
          valorBuscado = registros[nroRegistroA]; 
     }
-
-    uint32_t opB = ~valor + 1;                       // complemento a 2 de B
-    uint64_t resta = (uint64_t)valorBuscado + (uint64_t)opB;   // suma, no resta directa
-    uint32_t resultado = (uint32_t)resta;
-    int c = resta > 0xFFFFFFFFULL;
-    int v = ((~(valorBuscado ^ opB)) & (valorBuscado ^ resultado)) >> 31 & 1;
-
-    actualizarCC(resta, c, v);
+    
 }
 
 void AND(  unsigned char tipoOpA, unsigned char tipoOpB, uint32_t valorA, uint32_t valorB ){
