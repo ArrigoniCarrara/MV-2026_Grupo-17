@@ -39,3 +39,12 @@ tipo_seg tabla_seg[TAM_SEG]; // Tabla de segmentos
 
 uint32_t registros[CANT_REG]; // Registros
 
+// --- Manejo de errores ---
+typedef enum {
+    ERR_NINGUNO = 0,
+    ERR_INSTRUCCION_INVALIDA,
+    ERR_DIVISION_CERO,
+    ERR_FALLO_SEGMENTO
+} tipo_error;
+ 
+tipo_error error_actual = ERR_NINGUNO;
