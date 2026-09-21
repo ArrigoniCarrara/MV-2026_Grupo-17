@@ -9,7 +9,7 @@
 #define BIT_V 28
 
 int buscaDireccionFisica( int32_t valorOp, int32_t cantBytes ){// lo maximo que puede ser son 3 bytes de valorOp
-    int8_t codReg = valorOp & 0x00001F;//rescato el codigo de registro
+    uint8_t codReg = valorOp & 0x00001F;//rescato el codigo de registro
     int offset = valorOp >> 8 ;
     if ( codReg != DS ){
         offset += registros[codReg];
@@ -69,7 +69,7 @@ void MOV( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     }
     else
         if( tipoOpB == 0x01 ){
-            int8_t nroRegistroOpB = valorB & 0x0000001F;
+            uint8_t nroRegistroOpB = valorB & 0x0000001F;
             valor = registros[nroRegistroOpB];
         }
         else
@@ -81,143 +81,209 @@ void MOV( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     }
     else{
         // no nos atajamos si nos viene un opA inmediato.
-        int8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x000000FF;
         registros[nroRegistroA] = valor; 
     }
     registros[CC] &= 0x0FFFFFFF;
-    printf("Modifico CC  %d \n", valor);
     if ( valor == 0 ) 
         registros[CC] |= 0x40000000; 
 
     if ( valor < 0)
         registros[CC] |= 0x80000000;
-    printf("Valor modificado CC: %08X\n", registros[CC]);
 }
 
 
 void ADD( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    int valor;
+    int valorGuardadoB, valorGuardadoA;
     if ( tipoOpB == 0x03 ){
-        valor = lecturaEnMemoria( valorB, 4 );
+        valorGuardadoB = lecturaEnMemoria( valorB, 4 );
     }
     else 
         if(tipoOpB == 0x01 ){
-             int8_t nroRegistroOpB = valorB & 0x0000001F;
-             valor = registros[ nroRegistroOpB ];
+             uint8_t nroRegistroOpB = valorB & 0x0000001F;
+             valorGuardadoB = registros[ nroRegistroOpB ];
         }
         else
-            valor = valorB;
+            valorGuardadoB = valorB;
 
     if( tipoOpA == 0x03 ){
-        int valorBuscado = lecturaEnMemoria( valorA, 4 );
-        escrituraEnMemoria(valorBuscado + valor,4, valorA );
-        printf("%d\n", valorBuscado + valor);
+        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
+        escrituraEnMemoria(valorGuardadoA + valorGuardadoB,4, valorA );
+        printf("%d\n", valorGuardadoA + valorGuardadoB);
     }
     else{
-        int8_t nroRegistroA = valorA & 0x000000FF; // PREGUNTAR A NACHI Q ONDA
-         registros[nroRegistroA] += valor; 
+         uint8_t nroRegistroA = valorA & 0x0000001F;
+         valorGuardadoA = registros[nroRegistroA]; 
+         registros[nroRegistroA] += valorGuardadoB; 
          printf("%d\n",  registros[nroRegistroA]);
     }
+
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+    int32_t resultado = valorGuardadoB + valorGuardadoA;
+    if ( resultado == 0 )
+        registros[CC] |= 0x40000000;
+    if ( resultado < 0 )
+        registros[CC] |= 0x80000000;
+    
+    int64_t resul64 = (int64_t) valorGuardadoA  + (int64_t)  valorGuardadoB;
+    if ( resul64 > INT32_MAX || resul64 < INT32_MIN )
+        registros[CC] |= 0x10000000;
+        uint64_t resul = (uint64_t) valorGuardadoA  + (uint64_t)  valorGuardadoB;
+    if ( resul > INT32_MAX )
+        registros[CC] |= 0x20000000;
 }
 
 void SUB( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-        int valor;
+        int valorGuardadoB, valorGuardadoA;
     if ( tipoOpB == 0x03 ){
-        valor = lecturaEnMemoria( valorB, 4 );
+        valorGuardadoB = lecturaEnMemoria( valorB, 4 );
     }
     else 
         if(tipoOpB == 0x01 ){
-             int8_t nroRegistroOpB = valorB & 0x0000001F;
-             valor = registros[ nroRegistroOpB ];
+             uint8_t nroRegistroOpB = valorB & 0x0000001F;
+             valorGuardadoB = registros[ nroRegistroOpB ];
         }
         else
-            valor = valorB;
+            valorGuardadoB = valorB;
     if( tipoOpA == 0x03 ){
-        int valorBuscado = lecturaEnMemoria( valorA, 4 );
-        escrituraEnMemoria( valorBuscado - valor,4, valorA );
-        printf("%d\n", valorBuscado - valor);
+        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
+        escrituraEnMemoria( valorGuardadoA - valorGuardadoB,4, valorA );
+        printf("%d\n", valorGuardadoA - valorGuardadoB);
     }
     else{
-        int8_t nroRegistroA = valorA & 0x000000FF;
-         registros[nroRegistroA] -= valor; 
+         uint8_t nroRegistroA = valorA & 0x0000001F;
+         valorGuardadoA = registros[nroRegistroA];
+         registros[nroRegistroA] -= valorGuardadoB; 
          printf("%d\n",  registros[nroRegistroA]);
     }
+
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+    int32_t resultado = valorGuardadoA - valorGuardadoB;
+    if ( resultado == 0 )
+        registros[CC] |= 0x40000000;
+    if ( resultado < 0 )
+        registros[CC] |= 0x80000000;
+    if ( ( valorGuardadoA >= 0 && valorGuardadoB < 0 && resultado < 0 ) ||( valorGuardadoA < 0 && valorGuardadoB > 0 && resultado > 0 ) )
+        registros[CC] |= 0x10000000;
+    uint64_t guardadoA64bits = valorGuardadoA;
+    uint64_t guardadoB64bits = valorGuardadoB;
+    uint64_t resultado64bits = guardadoA64bits - guardadoB64bits;
+    if ( resultado64bits >> 32 != 0 )
+        registros[CC] |= 0x20000000;
 }
 
 void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    int valor;
+    int valorGuardadoB, valorGuardadoA;
     if ( tipoOpB == 0x03 ){
-        valor = lecturaEnMemoria( valorB, 4 );
+        valorGuardadoB = lecturaEnMemoria( valorB, 4 );
     }
     else 
         if(tipoOpB == 0x01 ){
-             int8_t nroRegistroOpB = valorB & 0x0000001F;
-             valor = registros[ nroRegistroOpB ];
+             uint8_t nroRegistroOpB = valorB & 0x0000001F;
+             valorGuardadoB = registros[ nroRegistroOpB ];
         }
         else
-            valor = valorB;
+            valorGuardadoB = valorB;
     if( tipoOpA == 0x03 ){
-        int valorBuscado = lecturaEnMemoria( valorA, 4 );
-        escrituraEnMemoria( valorBuscado * valor, 4, valorA );
-        printf("%d\n", valorBuscado * valor);
+        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
+        escrituraEnMemoria( valorGuardadoA * valorGuardadoB, 4, valorA );
+        printf("%d\n", valorGuardadoA * valorGuardadoB);
     }
     else{
-        int8_t nroRegistroA = valorA & 0x000000FF;
-         registros[nroRegistroA] *= valor; 
+        uint8_t nroRegistroA = valorA & 0x0000001F;
+         registros[nroRegistroA] *= valorGuardadoB; 
          printf("%d\n",  registros[nroRegistroA]);
     }
+
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+    int32_t resultado = valorGuardadoA * valorGuardadoB;
+    if ( resultado == 0 )
+        registros[CC] |= 0x40000000;
+    if ( resultado < 0 )
+        registros[CC] |= 0x80000000;
+    if ( ( valorGuardadoA >= 0 && valorGuardadoB > 0 && resultado < 0 ) ||( valorGuardadoA < 0 && valorGuardadoB < 0 && resultado > 0 ) )
+        registros[CC] |= 0x10000000;
+    uint64_t guardadoA64bits = valorGuardadoA;
+    uint64_t guardadoB64bits = valorGuardadoB;
+    uint64_t resultado64bits = guardadoA64bits * guardadoB64bits;
+    if ( resultado64bits >> 32 != 0 )
+        registros[CC] |= 0x20000000;
 }
 
 void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    int valor;
+    int valorGuardadoB, valorGuardadoA;
     if ( tipoOpB == 0x03 ){
-        valor = lecturaEnMemoria( valorB, 4 );
+        valorGuardadoB = lecturaEnMemoria( valorB, 4 );
     }
     else 
         if(tipoOpB == 0x01 ){
-             int8_t nroRegistroOpB = valorB & 0x0000001F;
-             valor = registros[ nroRegistroOpB ];
+             uint8_t nroRegistroOpB = valorB & 0x0000001F;
+             valorGuardadoB = registros[ nroRegistroOpB ];
         }
         else
-            valor = valorB;
+            valorGuardadoB = valorB;
 
-    if(valor == 0)
+    if(valorGuardadoB == 0)
         printf("Division por cero flaco");
     else{
         if( tipoOpA == 0x03 ){
-            int valorBuscado = lecturaEnMemoria( valorA, 4 );
-            escrituraEnMemoria( valorBuscado / valor, 4, valorA );
-            printf("%d\n", valorBuscado / valor);
+            valorGuardadoA = lecturaEnMemoria( valorA, 4 );
+            escrituraEnMemoria( valorGuardadoA / valorGuardadoB, 4, valorA );
+            printf("%d\n", valorGuardadoA / valorGuardadoB);
         }
         else{
-            int8_t nroRegistroA = valorA & 0x000000FF;
-            registros[nroRegistroA] /= valor; 
+            uint8_t nroRegistroA = valorA & 0x0000001F;
+            valorGuardadoA = registros[nroRegistroA];
+            registros[nroRegistroA] /= valorGuardadoB; 
             printf("%d\n",  registros[nroRegistroA]);
         }
     }
+
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+        registros[AC] = valorGuardadoA % valorGuardadoB;
+        int32_t resultado = valorGuardadoA / valorGuardadoB;
+        // La operacion DIV no modifica C ni V
+        registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+        if ( resultado == 0 )
+            registros[CC] |= 0x40000000;
+        if ( resultado < 0 )
+            registros[CC] |=  0x80000000;
 }
 
 void CMP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    int valor, valorBuscado;
+    int valorGuardadoB, valorGuardadoA;
     if ( tipoOpB == 0x03 ){
-        valor = lecturaEnMemoria( valorB, 4 );
+        valorGuardadoB = lecturaEnMemoria( valorB, 4 );
     }
     else 
         if(tipoOpB == 0x01 ){
-             int8_t nroRegistroOpB = valorB & 0x0000001F;
-             valor = registros[ nroRegistroOpB ];
+             uint8_t nroRegistroOpB = valorB & 0x0000001F;
+             valorGuardadoB = registros[ nroRegistroOpB ];
         }
         else
-            valor = valorB;
+            valorGuardadoB = valorB;
     
     if( tipoOpA == 0x03 ){
-        valorBuscado = lecturaEnMemoria( valorA, 4 );
+        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
     }
     else{
-        int8_t nroRegistroA = valorA & 0x000000FF;
-         valorBuscado = registros[nroRegistroA]; 
+        uint8_t nroRegistroA = valorA & 0x0000001F;
+        valorGuardadoA = registros[nroRegistroA]; 
     }
     
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+    int32_t resultado = valorGuardadoA - valorGuardadoB;
+    if ( resultado == 0 )
+        registros[CC] |= 0x40000000;
+    if ( resultado < 0 )
+        registros[CC] |= 0x80000000;
+    if ( ( valorGuardadoA >= 0 && valorGuardadoB < 0 && resultado < 0 ) ||( valorGuardadoA < 0 && valorGuardadoB > 0 && resultado > 0 ) )
+        registros[CC] |= 0x10000000;
+    int64_t guardadoA64bits = valorGuardadoA;
+    int64_t guardadoB64bits = valorGuardadoB;
+    int64_t resultado64bits = guardadoA64bits - guardadoB64bits;
+    if ( resultado64bits >> 32  != 0 )
+        registros[CC] |= 0x20000000;
 }
 
 void AND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
@@ -238,11 +304,12 @@ void AND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         escrituraEnMemoria( valorGuardadoA & valorGuardadoB, 4, valorA);
     }
     else{
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         valorGuardadoA = registros[nroRegistroA];
-        registros[nroRegistroA] &= valorGuardadoB;   
+        registros[nroRegistroA] = registros[nroRegistroA] & valorGuardadoB;   
     }
     //Modifico el CC
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA & valorGuardadoB;
     if ( resultado == 0 ) // 
         registros[CC] |= 0x40000000; // XX XX XX XX 
@@ -272,10 +339,12 @@ void OR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         escrituraEnMemoria( valorGuardadoB | valorGuardadoA, 4, valorA );
     }
     else{
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         valorGuardadoA = registros[nroRegistroA];
-        registros[nroRegistroA] |= valorGuardadoA;  
+        registros[nroRegistroA] |= valorGuardadoB;  
     }
+    registros[CC] &= 0x0FFFFFFF;// registro[CC] = 0x xx xx xx
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA & valorGuardadoB;
     if ( resultado == 0 ) // 
         registros[CC] |= 0x40000000; // XX XX XX XX 
@@ -303,9 +372,10 @@ void XOR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
         escrituraEnMemoria( valorGuardadoA ^ valorGuardadoB, 4, valorA );
     }
     else{
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         registros[nroRegistroA] ^= valorGuardadoB;  
     }
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA & valorGuardadoB;
     if ( resultado == 0 ) // 
         registros[CC] |= 0x40000000; // XX XX XX XX 
@@ -317,88 +387,149 @@ void XOR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
 }
 //solo afecta a N y Z
 void SWAP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    int valor1,valor2;
+     int valorGuardadoB,valorGuardadoA;
+     uint8_t nroRegistroA, nroRegistroOpB;
     if ( tipoOpB == 0x03 )
-         valor1 = lecturaEnMemoria(valorB, 4 );
+         valorGuardadoB = lecturaEnMemoria(valorB, 4 );
     else{
-        uint8_t nroRegistroOpB = valorB & 0x0000001F;
-        valor1 = registros[ nroRegistroOpB ];            
+         nroRegistroOpB = valorB & 0x0000001F;
+         valorGuardadoB = registros[ nroRegistroOpB ];
         }
     if ( tipoOpA == 0x03 )
-         valor2 = lecturaEnMemoria(valorA, 4 );
+         valorGuardadoA = lecturaEnMemoria(valorA, 4 );
     else{
-        int8_t nroRegistroA = valorA & 0x000000FF;
-        valor2 = registros[nroRegistroA];
+        nroRegistroA = valorA & 0x0000001F;
+        valorGuardadoA = registros[nroRegistroA];
     }
-    escrituraEnMemoria(valor1, 4, valorB);
-    escrituraEnMemoria(valor2, 4, valorA);
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+    if(tipoOpA == 3)
+        escrituraEnMemoria(valorGuardadoB, 4, valorA);
+    else if (tipoOpA == 2)
+             registros[nroRegistroA] = valorGuardadoB;
+            
+    if(tipoOpB == 3)
+        escrituraEnMemoria(valorGuardadoA, 4, valorB);
+        else
+            registros[nroRegistroOpB] = valorGuardadoA;
+
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+    if ( valorGuardadoB == 0 )
+        registros[CC] |= 0x40000000;
+    if ( valorGuardadoB < 0 )
+        registros[CC] |= 0x80000000; // -> 0x xx xx xx limpio los primeros 4 bits
 
 }
 
 void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    int valor1,valor2;
+    int valorGuardadoB,valorGuardadoA;
     if ( tipoOpB == 0x03 ){
-        valor1 = lecturaEnMemoria( valorB,4 );
+        valorGuardadoB = lecturaEnMemoria( valorB,4 );
     }
     else
         if( tipoOpB == 0x01 ){
         uint8_t nroRegistroOpB = valorB & 0x0000001F;
-        valor1 = registros[ nroRegistroOpB ];        
+        valorGuardadoB = registros[ nroRegistroOpB ];        
     }
     else
-        valor1 = valorB;
+        valorGuardadoB = valorB;
     if ( tipoOpA == 0x03 ){
-        valor2 = lecturaEnMemoria( valorA, 4 );
-        escrituraEnMemoria( valor2 << valor1,4, valorA );
+        valorGuardadoB = lecturaEnMemoria( valorA, 4 );
+        escrituraEnMemoria( valorGuardadoA << valorGuardadoB,4, valorA );
     }
     else{
-        int8_t nroRegistroA = valorA & 0x000000FF;
-        registros[nroRegistroA] <<= valor1;        
+        uint8_t nroRegistroA = valorA & 0x0000001F;
+        valorGuardadoA = registros[nroRegistroA];
+        registros[nroRegistroA] <<= valorGuardadoB;        
     }
+
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+    int32_t resultado = valorGuardadoA << valorGuardadoB;
+    if ( resultado == 0 ) // 
+        registros[CC] |= 0x40000000; // XX XX XX XX 
+
+    if ( resultado < 0 )
+        registros[CC] |= 0x80000000;
+        
+    uint64_t guardadoA64bits = valorGuardadoA;
+    uint64_t guardadoB64bits = valorGuardadoB;
+    uint64_t resultado64bits = guardadoA64bits << valorGuardadoB;
+    if( (uint64_t)resultado != resultado64bits )
+        registros[CC] |= 0x10000000;
+    if ( (resultado64bits >> 32 != 0 ) || valorGuardadoB > 32 )
+        registros[CC] |= 0x20000000;
 }
 
 void SHR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    uint32_t valor1,valor2;
+    int32_t valorGuardadoB,valorGuardadoA;
     if ( tipoOpB == 0x03 ){
-        valor1 = lecturaEnMemoria( valorB,4 );
+        valorGuardadoB = lecturaEnMemoria( valorB,4 );
     }
     else
         if( tipoOpB == 0x01 ){
         uint8_t nroRegistroOpB = valorB & 0x0000001F;
-        valor1 = registros[ nroRegistroOpB ];        
+        valorGuardadoB = registros[ nroRegistroOpB ];        
     }
     else
-        valor1 = valorB;
+        valorGuardadoB = valorB;
     if ( tipoOpA == 0x03 ){
-        valor2 = lecturaEnMemoria( valorA, 4 );
-        escrituraEnMemoria( valor2 >> valor1,4, valorA );
+        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
+        escrituraEnMemoria( valorGuardadoA >> valorGuardadoB,4, valorA );
     }
     else{
-        int8_t nroRegistroA = valorA & 0x000000FF;
-        registros[nroRegistroA] >>= valor1;        
+        uint8_t nroRegistroA = valorA & 0x0000001F;
+        valorGuardadoA = registros[nroRegistroA];
+        registros[nroRegistroA] >>= valorGuardadoB;        
     }
+
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+
+    uint32_t resultado = valorGuardadoA >> valorGuardadoB;
+
+    if ( resultado == 0 ) // 
+        registros[CC] |= 0x40000000; // XX XX XX XX 
+
+    if ( resultado < 0 )
+        registros[CC] |= 0x80000000;
+
+    uint64_t guardadoA64bits = valorGuardadoA;
+    uint64_t guardadoB64bits = valorGuardadoB;
+    uint64_t resultado64bits = guardadoA64bits >> valorGuardadoB;
+    if( (uint64_t)resultado != resultado64bits )
+        registros[CC] |= 0x10000000;
+
+    int c;
+    if( valorGuardadoB == 0 )
+        c = 0;
+        else if ( valorGuardadoB >= 32 )
+            c = (valorGuardadoA != 0);
+        else
+            c = (valorGuardadoA & ((1u << valorGuardadoB) - 1)) != 0;
+
+    if ( c )
+        registros[CC] |= 0x20000000;
 }
 
 void SAR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    int32_t valor1,valor2;
+    int32_t valorGuardadoB,valorGuardadoA;
     if ( tipoOpB == 0x03 ){
-        valor1 = lecturaEnMemoria( valorB,4 );
+        valorGuardadoB = lecturaEnMemoria( valorB,4 );
     }
     else
         if( tipoOpB == 0x01 ){
         uint8_t nroRegistroOpB = valorB & 0x0000001F;
-        valor1 = registros[ nroRegistroOpB ];        
+        valorGuardadoB = registros[ nroRegistroOpB ];        
     }
     else
-        valor1 = valorB;
+        valorGuardadoB = valorB;
     if ( tipoOpA == 0x03 ){
-        valor2 = lecturaEnMemoria( valorA, 4 );
-        int32_t resultado = valor2 >> valor1;
+        valorGuardadoB = lecturaEnMemoria( valorA, 4 );
+        int32_t resultado = valorGuardadoA >> valorGuardadoB;
         escrituraEnMemoria( resultado, 4, valorA );
     }
     else{
-        int8_t nroRegistroA = valorA & 0x000000FF;
-        int32_t resultado = valor2 >> valor1;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
+        valorGuardadoA = registros[nroRegistroA];
+        int32_t resultado = valorGuardadoA >> valorGuardadoB;
         registros[nroRegistroA] = resultado;        
     }
 }
@@ -423,7 +554,7 @@ void LDL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         escrituraEnMemoria( valorGuardadoB | valorGuardadoA, 4,valorA );  
     }
     else{
-        int8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x000000FF;
         valorGuardadoA = registros[nroRegistroA];
         registros[nroRegistroA] = valorGuardadoB | valorGuardadoA;
     }
@@ -450,7 +581,7 @@ void LDH(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         escrituraEnMemoria( (valorGuardadoB << 16) | valorGuardadoA, 4,valorA );  
     }
     else{
-        int8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         valorGuardadoA = registros[nroRegistroA];
         registros[nroRegistroA] = (valorGuardadoB << 16) | valorGuardadoA;
     }
@@ -469,17 +600,21 @@ void RND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         }
         else  
             valor = valorB;
+    uint32_t num_aleatorio =  0 ; // BUSCAR UNA FUNCION RANDOM QUE FUNCIONE
     if( tipoOpA == 0x03 ){
-        escrituraEnMemoria( rand() %( valor + lecturaEnMemoria( valorA, 4 )+1 )+lecturaEnMemoria( valorA,4 ), 4, valorA);
+        escrituraEnMemoria(num_aleatorio, 4, valorA);
+    }else{
+        uint8_t nroRegistroA = valorA & 0x0000001F;
+        registros[nroRegistroA] = num_aleatorio;
     }
 
 }
 
 void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    int32_t dire_memoria = registros[EDX]; // Donde empiezo a leer o escribir
-    int16_t cant_valores = registros[ECX] & 0x00FF;
-    int16_t cantbytes = registros[ECX] >> 16;
-    int8_t modo_lectura = registros[EAX];
+    uint32_t dire_memoria = registros[EDX]; // Donde empiezo a leer o escribir
+    uint16_t cant_valores = registros[ECX] & 0x00FF;
+    uint16_t cantbytes = registros[ECX] >> 16;
+    uint8_t modo_lectura = registros[EAX];
     if(valorA == 1){
 
         for(int i = 0; i < cant_valores; i++){
@@ -570,7 +705,7 @@ void JMP( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
         valor = lecturaEnMemoria( valorA, 4 );
     }
     else if (tipoOpA == 0x01){
-         int8_t nroRegistroA = valorA & 0x000000FF;
+         uint8_t nroRegistroA = valorA & 0x0000001F;
          valor = registros[nroRegistroA]; 
     } else{
         valor = valorA;
@@ -594,7 +729,7 @@ void JP( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         valor = lecturaEnMemoria( valorA, 4 );
     }
     else if (tipoOpA == 0x01){
-        int8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
          valor = registros[nroRegistroA]; 
     }else{
         valor = valorA;
@@ -620,7 +755,7 @@ void JN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         valor = lecturaEnMemoria( valorA, 4 );
     }
     else if (tipoOpA == 0x01){
-        int8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
          valor = registros[nroRegistroA]; 
     }else{
         valor = valorA;
@@ -644,7 +779,7 @@ void JZ (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         valor = lecturaEnMemoria( valorA, 4 );
     }
     else if (tipoOpA == 0x01){
-        int8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
          valor = registros[nroRegistroA]; 
     }else{
         valor = valorA;
@@ -668,7 +803,7 @@ void JC (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         valor = lecturaEnMemoria( valorA, 4 );
     }
     else if (tipoOpA == 0x01){
-        int8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
          valor = registros[nroRegistroA]; 
     }else{
         valor = valorA;
@@ -691,7 +826,7 @@ void JV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         valor = lecturaEnMemoria( valorA, 4 );
     }
     else if (tipoOpA == 0x01){
-        int8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
          valor = registros[nroRegistroA]; 
     }else{
         valor = valorA;
@@ -717,7 +852,7 @@ void JNP (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
         valor = lecturaEnMemoria( valorA, 4 );
     }
     else if (tipoOpA == 0x01){
-        int8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
          valor = registros[nroRegistroA]; 
     }else{
         valor = valorA;
@@ -742,7 +877,7 @@ void JNN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
         valor = lecturaEnMemoria( valorA, 4 );
     }
     else if (tipoOpA == 0x01){
-        int8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
          valor = registros[nroRegistroA]; 
     }else{
         valor = valorA;
@@ -767,7 +902,7 @@ void JNZ (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
         valor = lecturaEnMemoria( valorA, 4 );
     }
     else if (tipoOpA == 0x01){
-        int8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
          valor = registros[nroRegistroA]; 
     }else{
         valor = valorA;
@@ -790,10 +925,16 @@ void NOT ( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             escrituraEnMemoria(valor, 4, valorA);
         }
         else if (tipoOpA == 0x01){
-            int8_t nroRegistroA = valorA & 0x000000FF;
+            uint8_t nroRegistroA = valorA & 0x0000001F;
             valor = registros[nroRegistroA]; 
         }else
             valor = valorA;
+
+        registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+        if ( valor < 0 )
+            registros[CC] |= 0x80000000;
+        if ( valor == 0 )
+            registros[CC] |= 0x40000000;
         
 }
 
