@@ -1,4 +1,3 @@
-
 #include "funciones.c"
 
 
@@ -61,16 +60,47 @@ int main(int argc, char *argv[]) {
     // Inicializamos Registros
     registros[CS] = tabla_seg[0].base; // CS
     registros[DS] = tabla_seg[1].base; // DS
-    registros[IP] = registros[26]; // IP
+    registros[IP] = registros[CS]; // IP
 
     // Ciclo Principal
-    while(registros[IP] < tabla_seg[1].base && registros[IP] != -1){
+     while(registros[IP] < tabla_seg[1].base && registros[IP] != -1){
         buscoOperacion(&registros[IP]);
-        printf("------------\n");
         if (registros[IP] != -1)
            registros[IP] = registros[IP] + 1;
     }
-   
+
+     printf("--- Memoria Luego del Programa ---\n");// Muestra el codigo en Hexadecimal y binario dentro de la memoria principal
+    printf("Pos  | Binario  | Hex \n");
+    printf("------------------------\n");
+    for (size_t i = 0; i < 100; i++) {
+        printf("[%02zu] | ", i);           
+        imprimir_binario(RAM[i]);          
+        printf(" | %02X\n", RAM[i]);       
+    }
+
+
+    printf("\n================================================\n");
+    printf("--- ESTADO FINAL DE LOS REGISTROS ---\n");
+    
+    // Registros de control e internos
+    printf("IP  : %08X | OPC : %08X\n", registros[IP], registros[OPC]);
+    printf("OP1 : %08X | OP2 : %08X\n", registros[OP1], registros[OP2]);
+    printf("LAR : %08X | MAR : %08X | MBR : %08X\n", registros[LAR], registros[MAR], registros[MBR]);
+    
+    printf("------------------------------------------------\n");
+    
+    // Registros de propósito general
+    printf("EAX : %08X | EBX : %08X\n", registros[EAX], registros[EBX]);
+    printf("ECX : %08X | EDX : %08X\n", registros[ECX], registros[EDX]);
+    printf("EEX : %08X | EFX : %08X\n", registros[EEX], registros[EFX]);
+    
+    printf("------------------------------------------------\n");
+    
+    // Registros de estado y segmentos
+    printf("AC  : %08X | CC  : %08X\n", registros[AC], registros[CC]);
+    printf("CS  : %08X | DS  : %08X\n", registros[CS], registros[DS]);
+    printf("================================================\n");
+
     fclose(archivo);
-    return -1;
+    return 1;
 }
