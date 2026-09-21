@@ -10,11 +10,10 @@
 
 int buscaDireccionFisica( int32_t valorOp, int32_t cantBytes ){// lo maximo que puede ser son 3 bytes de valorOp
     uint8_t codReg = valorOp & 0x00001F;//rescato el codigo de registro
-    int offset = valorOp >> 8 ;
-    if ( codReg != DS ){
-        offset += registros[codReg];
-    }
-    int direFisica = tabla_seg[1].base + offset;
+    int offset = valorOp >> 8;
+    int direFisica = registros[codReg];
+    direFisica += offset;
+
     if ( (tabla_seg[1].tam + tabla_seg[1].base < direFisica + cantBytes) || (direFisica < tabla_seg[1].base) ){
         printf( "Te fuiste del segmento capo" );
         return -1;
@@ -24,7 +23,7 @@ int buscaDireccionFisica( int32_t valorOp, int32_t cantBytes ){// lo maximo que 
         registros[MAR] = cantBytes;
         registros[MAR] = registros[MAR] << 16;
         registros[LAR] = 0x00010000;
-        registros[LAR] += offset;
+        registros[LAR] |= offset;
         registros[MAR] = (registros[MAR] & 0xFFFF0000 ) | parteBaja;
 
         return direFisica;
@@ -52,7 +51,6 @@ int lecturaEnMemoria( int32_t valorOp, int32_t cantBytes ){
         for ( int i = direccionEnMemoria; i < direccionEnMemoria + cantBytes; i++ ){
             aux -= 8;
             valor = valor | (RAM[i] << aux);// es un OR acumulativo
-
         }      
         registros[MBR] = valor;
         printf("[MEMORIA] Leyendo %d bytes desde Dir Física [%04X]: Valor obtenido %08X\n", cantBytes, direccionEnMemoria, valor);
@@ -118,18 +116,20 @@ void ADD( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
          printf("%d\n",  registros[nroRegistroA]);
     }
 
+    // Aca modifico el CC
     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoB + valorGuardadoA;
     if ( resultado == 0 )
         registros[CC] |= 0x40000000;
     if ( resultado < 0 )
         registros[CC] |= 0x80000000;
-    
+    // Overflow:
     int64_t resul64 = (int64_t) valorGuardadoA  + (int64_t)  valorGuardadoB;
     if ( resul64 > INT32_MAX || resul64 < INT32_MIN )
         registros[CC] |= 0x10000000;
-        uint64_t resul = (uint64_t) valorGuardadoA  + (uint64_t)  valorGuardadoB;
-    if ( resul > INT32_MAX )
+    // Acarreo
+    uint64_t resU64 = (uint64_t)(uint32_t)valorGuardadoA + (uint64_t)(uint32_t)valorGuardadoB;
+    if ((resU64 >> 32) != 0)// se hace el doble casteo para que no extienda el signo
         registros[CC] |= 0x20000000;
 }
 
@@ -157,18 +157,22 @@ void SUB( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
          printf("%d\n",  registros[nroRegistroA]);
     }
 
+    // Aca modifico el CC
     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA - valorGuardadoB;
     if ( resultado == 0 )
         registros[CC] |= 0x40000000;
     if ( resultado < 0 )
         registros[CC] |= 0x80000000;
-    if ( ( valorGuardadoA >= 0 && valorGuardadoB < 0 && resultado < 0 ) ||( valorGuardadoA < 0 && valorGuardadoB > 0 && resultado > 0 ) )
+
+        // Overflow:
+    int64_t resul64 = (int64_t) valorGuardadoA  - (int64_t)valorGuardadoB;
+    if ( resul64 > INT32_MAX || resul64 < INT32_MIN )
         registros[CC] |= 0x10000000;
-    uint64_t guardadoA64bits = valorGuardadoA;
-    uint64_t guardadoB64bits = valorGuardadoB;
-    uint64_t resultado64bits = guardadoA64bits - guardadoB64bits;
-    if ( resultado64bits >> 32 != 0 )
+
+        // acarreo
+    uint64_t result64 = (uint64_t)(uint32_t)valorGuardadoA - (uint64_t)(uint32_t)valorGuardadoB;// Doble caseteo asi no propago el signo
+    if (result64 >> 32 != 0 )
         registros[CC] |= 0x20000000;
 }
 
@@ -191,6 +195,7 @@ void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     }
     else{
         uint8_t nroRegistroA = valorA & 0x0000001F;
+        valorGuardadoA = registros[nroRegistroA];
          registros[nroRegistroA] *= valorGuardadoB; 
          printf("%d\n",  registros[nroRegistroA]);
     }
@@ -201,12 +206,13 @@ void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         registros[CC] |= 0x40000000;
     if ( resultado < 0 )
         registros[CC] |= 0x80000000;
-    if ( ( valorGuardadoA >= 0 && valorGuardadoB > 0 && resultado < 0 ) ||( valorGuardadoA < 0 && valorGuardadoB < 0 && resultado > 0 ) )
+
+    int64_t resultadoConSigno = (int64_t) valorGuardadoA  * (int64_t)  valorGuardadoB;
+    if ( resultadoConSigno > INT32_MAX || resultadoConSigno < INT32_MIN )
         registros[CC] |= 0x10000000;
-    uint64_t guardadoA64bits = valorGuardadoA;
-    uint64_t guardadoB64bits = valorGuardadoB;
-    uint64_t resultado64bits = guardadoA64bits * guardadoB64bits;
-    if ( resultado64bits >> 32 != 0 )
+
+    uint64_t resul64 = (uint64_t)(uint32_t)valorGuardadoA * (uint64_t)(uint32_t)valorGuardadoB;// Doble caseteo asi no propago el signo
+    if (resul64 >> 32 != 0 )
         registros[CC] |= 0x20000000;
 }
 
@@ -239,7 +245,7 @@ void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
         }
     }
 
-    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+        registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
         registros[AC] = valorGuardadoA % valorGuardadoB;
         int32_t resultado = valorGuardadoA / valorGuardadoB;
         // La operacion DIV no modifica C ni V
@@ -270,19 +276,23 @@ void CMP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         uint8_t nroRegistroA = valorA & 0x0000001F;
         valorGuardadoA = registros[nroRegistroA]; 
     }
-    
-    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+    registros[CC] &= 0x0FFFFFFF;
     int32_t resultado = valorGuardadoA - valorGuardadoB;
+    printf("------------(%d)-------------", resultado);
     if ( resultado == 0 )
-        registros[CC] |= 0x40000000;
+        registros[CC] |= 0x40000000;  
     if ( resultado < 0 )
         registros[CC] |= 0x80000000;
-    if ( ( valorGuardadoA >= 0 && valorGuardadoB < 0 && resultado < 0 ) ||( valorGuardadoA < 0 && valorGuardadoB > 0 && resultado > 0 ) )
+
+        // Overflow:
+    int64_t resultadoConSigno = (int64_t) valorGuardadoA  - (int64_t)valorGuardadoB;
+    if (  resultadoConSigno > INT32_MAX ||  resultadoConSigno < INT32_MIN )
         registros[CC] |= 0x10000000;
-    int64_t guardadoA64bits = valorGuardadoA;
-    int64_t guardadoB64bits = valorGuardadoB;
-    int64_t resultado64bits = guardadoA64bits - guardadoB64bits;
-    if ( resultado64bits >> 32  != 0 )
+
+    // acarreo
+    uint64_t resultadoSinSigno = (uint64_t)(uint32_t)valorGuardadoA + (uint64_t)(~((uint32_t)valorGuardadoB)+1);
+
+    if (resultadoSinSigno>> 32 != 0 )
         registros[CC] |= 0x20000000;
 }
 
@@ -712,7 +722,7 @@ void JMP( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     }
 
     if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor;
+        registros[IP] = valor - 1;
     else{
         printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
     }
@@ -736,7 +746,7 @@ void JP( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
     }
 
     if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor;
+        registros[IP] = valor - 1;
     else{
         printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
     }
@@ -762,7 +772,7 @@ void JN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     }
 
     if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor;
+        registros[IP] = valor - 1;
     else{
         printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
     }
@@ -776,20 +786,20 @@ void JZ (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     if(z == 1){
         int valor;
         if( tipoOpA == 0x03 ){
-        valor = lecturaEnMemoria( valorA, 4 );
-    }
-    else if (tipoOpA == 0x01){
-        uint8_t nroRegistroA = valorA & 0x0000001F;
-         valor = registros[nroRegistroA]; 
-    }else{
-        valor = valorA;
-    }
+            valor = lecturaEnMemoria( valorA, 4 );
+        }
+        else if (tipoOpA == 0x01){
+            uint8_t nroRegistroA = valorA & 0x0000001F;
+            valor = registros[nroRegistroA]; 
+        }else{
+            valor = valorA;
+        }
 
-    if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor;
-    else{
-        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
-    }
+        if(valor <= tabla_seg[0].tam)
+            registros[IP] = valor - 1;
+        else{
+            printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+        }   
 
     }
 }
@@ -809,7 +819,7 @@ void JC (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         valor = valorA;
     }
     if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor;
+        registros[IP] = valor - 1;
     else{
         printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
     }
@@ -833,7 +843,7 @@ void JV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     }
 
     if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor;
+        registros[IP] = valor - 1;
     else{
         printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
     }
@@ -859,7 +869,7 @@ void JNP (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
     }
 
     if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor;
+        registros[IP] = valor - 1;
     else{
         printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
     }
@@ -884,7 +894,7 @@ void JNN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
     }
 
     if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor;
+        registros[IP] = valor - 1;
     else{
         printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
     }
@@ -909,7 +919,7 @@ void JNZ (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
     }
 
     if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor;
+        registros[IP] = valor - 1;
     else{
         printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
     }

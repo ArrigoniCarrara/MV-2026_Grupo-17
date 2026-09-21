@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
     // Leer la cabecera completa de 8 bytes
     cabecera_programa p;
 
-    if (fread(&p, sizeof(cabecera_programa), 1, archivo) != 1) { // (CORREGIR)se toman los 0 como bytes y se aumenta una bocha los BYTES
+    if (fread(&p, sizeof(cabecera_programa), 1, archivo) != 1) { 
         printf("Error al leer la cabecera del archivo\n");
         fclose(archivo);
         return -1;
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
 
     // Ciclo Principal
      while(registros[IP] < tabla_seg[1].base && registros[IP] != -1){
-        buscoOperacion(&registros[IP]);
+        buscoOperacion(&registros[IP]); 
         if (registros[IP] != -1)
            registros[IP] = registros[IP] + 1;
     }
