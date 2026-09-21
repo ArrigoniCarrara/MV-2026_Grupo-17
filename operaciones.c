@@ -15,7 +15,7 @@ int buscaDireccionFisica( int32_t valorOp, int32_t cantBytes ){// lo maximo que 
     direFisica += offset;
 
     if ( (tabla_seg[1].tam + tabla_seg[1].base < direFisica + cantBytes) || (direFisica < tabla_seg[1].base) ){
-        printf( "Te fuiste del segmento capo" );
+        error_actual = ERR_FALLO_SEGMENTO;
         return -1;
     }
     else{
@@ -229,9 +229,12 @@ void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
         else
             valorGuardadoB = valorB;
 
-    if(valorGuardadoB == 0)
-        printf("Division por cero flaco");
+    if(valorGuardadoB == 0){
+        error_actual = ERR_DIVISION_CERO;
+        return;
+    }
     else{
+
         if( tipoOpA == 0x03 ){
             valorGuardadoA = lecturaEnMemoria( valorA, 4 );
             escrituraEnMemoria( valorGuardadoA / valorGuardadoB, 4, valorA );
@@ -628,7 +631,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     if(valorA == 1){
 
         for(int i = 0; i < cant_valores; i++){
-            printf("[%d]", dire_memoria);
+            printf("[%d]: ", dire_memoria);
             int32_t valor_usuario;
             if(modo_lectura == 1){
                 scanf("%d",&valor_usuario);
@@ -654,7 +657,8 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
                     RAM[i] = valor_usuario >> (aux) & 0xFF;// dado el valor viene en 32 bits debo hacer determinada logica
                 }
                 dire_memoria += cantbytes;
-            }        
+            }else
+                return;        
         }
 
 
@@ -702,7 +706,8 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
                 }
             }
             printf("\n");
-        }
+        }else
+             return;
 
        }
        printf("=======================================\n");
@@ -724,7 +729,7 @@ void JMP( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     if(valor <= tabla_seg[0].tam)
         registros[IP] = valor - 1;
     else{
-        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+        error_actual = ERR_FALLO_SEGMENTO;
     }
 }
 
@@ -748,7 +753,7 @@ void JP( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
     if(valor <= tabla_seg[0].tam)
         registros[IP] = valor - 1;
     else{
-        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+        error_actual = ERR_FALLO_SEGMENTO;
     }
 
     }
@@ -774,7 +779,7 @@ void JN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     if(valor <= tabla_seg[0].tam)
         registros[IP] = valor - 1;
     else{
-        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+        error_actual = ERR_FALLO_SEGMENTO;
     }
 
     }
@@ -798,7 +803,7 @@ void JZ (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         if(valor <= tabla_seg[0].tam)
             registros[IP] = valor - 1;
         else{
-            printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+            error_actual = ERR_FALLO_SEGMENTO;
         }   
 
     }
@@ -821,7 +826,7 @@ void JC (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     if(valor <= tabla_seg[0].tam)
         registros[IP] = valor - 1;
     else{
-        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+        error_actual = ERR_FALLO_SEGMENTO;
     }
 
     }
@@ -845,7 +850,7 @@ void JV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     if(valor <= tabla_seg[0].tam)
         registros[IP] = valor - 1;
     else{
-        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+        error_actual = ERR_FALLO_SEGMENTO;
     }
 
     }
@@ -871,7 +876,7 @@ void JNP (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
     if(valor <= tabla_seg[0].tam)
         registros[IP] = valor - 1;
     else{
-        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+        error_actual = ERR_FALLO_SEGMENTO;
     }
 
     }
@@ -896,7 +901,7 @@ void JNN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
     if(valor <= tabla_seg[0].tam)
         registros[IP] = valor - 1;
     else{
-        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+        error_actual = ERR_FALLO_SEGMENTO;
     }
 
     }
@@ -921,7 +926,7 @@ void JNZ (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
     if(valor <= tabla_seg[0].tam)
         registros[IP] = valor - 1;
     else{
-        printf("Te fuiste al DATA SEGMENT PEDAZO DE GIL");
+        error_actual = ERR_FALLO_SEGMENTO;
     }
 
     }
@@ -948,7 +953,9 @@ void NOT ( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         
 }
 
-void ERROR (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){}// ver manejos de errores despues
+void ERROR (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
+    error_actual = ERR_INSTRUCCION_INVALIDA;
+}
 
 void STOP( unsigned char opA, unsigned char opB, int32_t valorA, int32_t valorB ){
     registros[IP] = -1;

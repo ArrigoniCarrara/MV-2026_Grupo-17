@@ -50,6 +50,11 @@ void dosOperandos(int32_t *ip){
         tipo_opa = (RAM[*ip] >> 4) & 0x03; // obtengo el bit 3 y 4 mas significativo
         cod_op = RAM[*ip] & 0x1F;// obtengo los 5 bits menos significativos
 
+        if (cod_op < 0x10) { // los codigos validos de dos operandos van de 0x10 (MOV) a 0x1F (RND)
+            error_actual = ERR_INSTRUCCION_INVALIDA;
+            return;
+        }
+
         valor_opb = p_tipo_op[tipo_opb](ip);
         valor_opa = p_tipo_op[tipo_opa](ip);
 
@@ -78,6 +83,11 @@ void unOperando(int32_t *ip){
         tipo_opa = (RAM[*ip] >> 6) & 0x03;
         cod_op = RAM[*ip] & 0x0F;
 
+        if (cod_op > 0x0A) { // los codigos validos de un operando van de 0x00 (SYS) a 0x0A (NOT)
+            error_actual = ERR_INSTRUCCION_INVALIDA;
+            return;
+        }
+
         valor_opa = p_tipo_op[tipo_opa](ip);
 
         registros[OPC] = cod_op; // OPC = codigo de operacion
@@ -99,7 +109,13 @@ void ningunOperando(int32_t *ip){
         int32_t valor_opb = 0;
 
         cod_op = RAM[*ip] & 0x0F;
-        registros[1] = cod_op;// codigo de operacion
+
+        if (cod_op != 0x0F) { // el unico codigo valido sin operandos es STOP (0x0F)
+            error_actual = ERR_INSTRUCCION_INVALIDA;
+            return;
+        }
+        
+        registros[OPC] = cod_op;// codigo de operacion
         
        operaciones[cod_op](tipo_opa, tipo_opb, valor_opa, valor_opb);
 } 
