@@ -1,7 +1,6 @@
 #include "operaciones.c"
 
-int32_t ninguno(int32_t *ip){return 0x0;} // ERROR
-
+int32_t ninguno(int32_t *ip){} 
 
 int32_t registro(int32_t *ip){
         *ip = *ip + 1;
