@@ -117,7 +117,7 @@ void ADD( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     }
 
     // Aca modifico el CC
-    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoB + valorGuardadoA;
     if ( resultado == 0 )
         registros[CC] |= 0x40000000;
@@ -158,21 +158,26 @@ void SUB( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     }
 
     // Aca modifico el CC
-    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA - valorGuardadoB;
+    printf("-------------------------Resultado----------------------- %d:\n", resultado);
     if ( resultado == 0 )
         registros[CC] |= 0x40000000;
     if ( resultado < 0 )
         registros[CC] |= 0x80000000;
 
         // Overflow:
-    int64_t resul64 = (int64_t) valorGuardadoA  - (int64_t)valorGuardadoB;
-    if ( resul64 > INT32_MAX || resul64 < INT32_MIN )
+    int64_t resultadoConSigno = (int64_t) valorGuardadoA  - (int64_t)valorGuardadoB;
+    if (  resultadoConSigno > INT32_MAX ||  resultadoConSigno < INT32_MIN )
         registros[CC] |= 0x10000000;
 
-        // acarreo
-    uint64_t result64 = (uint64_t)(uint32_t)valorGuardadoA - (uint64_t)(uint32_t)valorGuardadoB;// Doble caseteo asi no propago el signo
-    if (result64 >> 32 != 0 )
+    // acarreo
+    uint64_t resulSinSigno = (uint64_t)(uint32_t)valorGuardadoA + (uint64_t)(~((uint32_t)valorGuardadoB)+1);
+    // tengo que hacer la resta con complemento A2
+
+    printf("--------------Resultado de carry %llu\n----------------", resulSinSigno);
+
+    if (resulSinSigno>> 32 != 0 )
         registros[CC] |= 0x20000000;
 }
 
@@ -200,17 +205,18 @@ void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
          printf("%d\n",  registros[nroRegistroA]);
     }
 
-    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA * valorGuardadoB;
     if ( resultado == 0 )
         registros[CC] |= 0x40000000;
     if ( resultado < 0 )
         registros[CC] |= 0x80000000;
 
+        // Overflow:
     int64_t resultadoConSigno = (int64_t) valorGuardadoA  * (int64_t)  valorGuardadoB;
     if ( resultadoConSigno > INT32_MAX || resultadoConSigno < INT32_MIN )
         registros[CC] |= 0x10000000;
-
+        // Acarreo
     uint64_t resul64 = (uint64_t)(uint32_t)valorGuardadoA * (uint64_t)(uint32_t)valorGuardadoB;// Doble caseteo asi no propago el signo
     if (resul64 >> 32 != 0 )
         registros[CC] |= 0x20000000;
@@ -279,11 +285,10 @@ void CMP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         uint8_t nroRegistroA = valorA & 0x0000001F;
         valorGuardadoA = registros[nroRegistroA]; 
     }
-    registros[CC] &= 0x0FFFFFFF;
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA - valorGuardadoB;
-    printf("------------(%d)-------------", resultado);
     if ( resultado == 0 )
-        registros[CC] |= 0x40000000;  
+        registros[CC] |= 0x40000000;
     if ( resultado < 0 )
         registros[CC] |= 0x80000000;
 
@@ -294,6 +299,7 @@ void CMP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
     // acarreo
     uint64_t resultadoSinSigno = (uint64_t)(uint32_t)valorGuardadoA + (uint64_t)(~((uint32_t)valorGuardadoB)+1);
+    // tengo que hacer la resta con complemento A2
 
     if (resultadoSinSigno>> 32 != 0 )
         registros[CC] |= 0x20000000;
@@ -322,15 +328,14 @@ void AND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         registros[nroRegistroA] = registros[nroRegistroA] & valorGuardadoB;   
     }
     //Modifico el CC
+    //Modifico el CC
     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA & valorGuardadoB;
     if ( resultado == 0 ) // 
         registros[CC] |= 0x40000000; // XX XX XX XX 
 
     if ( resultado < 0 )
-        registros[CC] |= 0x80000000;
-        
-            
+        registros[CC] |= 0x80000000;         
         
 }
 //solo afecta a N y Z
@@ -356,7 +361,6 @@ void OR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         valorGuardadoA = registros[nroRegistroA];
         registros[nroRegistroA] |= valorGuardadoB;  
     }
-    registros[CC] &= 0x0FFFFFFF;// registro[CC] = 0x xx xx xx
     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA & valorGuardadoB;
     if ( resultado == 0 ) // 
@@ -389,7 +393,7 @@ void XOR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
         registros[nroRegistroA] ^= valorGuardadoB;  
     }
     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
-    int32_t resultado = valorGuardadoA & valorGuardadoB;
+    int32_t resultado = valorGuardadoA ^ valorGuardadoB;
     if ( resultado == 0 ) // 
         registros[CC] |= 0x40000000; // XX XX XX XX 
 
@@ -462,13 +466,15 @@ void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
     if ( resultado < 0 )
         registros[CC] |= 0x80000000;
-        
-    uint64_t guardadoA64bits = valorGuardadoA;
-    uint64_t guardadoB64bits = valorGuardadoB;
-    uint64_t resultado64bits = guardadoA64bits << valorGuardadoB;
-    if( (uint64_t)resultado != resultado64bits )
+
+    // Overflow
+    int64_t resultadoConSigno = (int64_t)(int32_t)valorGuardadoA << (int64_t)(int32_t)valorGuardadoB;
+    if ( resultadoConSigno > INT32_MAX || resultadoConSigno < INT32_MIN)
         registros[CC] |= 0x10000000;
-    if ( (resultado64bits >> 32 != 0 ) || valorGuardadoB > 32 )
+
+    // Acarreo
+    uint64_t resultadoSinSigno = (uint64_t) valorGuardadoA << (uint64_t)valorGuardadoB;
+    if( resultadoSinSigno >> 32 != 0 || valorGuardadoB >= 32  )
         registros[CC] |= 0x20000000;
 }
 
@@ -504,21 +510,18 @@ void SHR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     if ( resultado < 0 )
         registros[CC] |= 0x80000000;
 
-    uint64_t guardadoA64bits = valorGuardadoA;
-    uint64_t guardadoB64bits = valorGuardadoB;
-    uint64_t resultado64bits = guardadoA64bits >> valorGuardadoB;
-    if( (uint64_t)resultado != resultado64bits )
-        registros[CC] |= 0x10000000;
+    uint32_t a    = (uint32_t)valorGuardadoA;
+    uint32_t cant = (uint32_t)valorGuardadoB;
 
     int c;
-    if( valorGuardadoB == 0 )
-        c = 0;
-        else if ( valorGuardadoB >= 32 )
-            c = (valorGuardadoA != 0);
-        else
-            c = (valorGuardadoA & ((1u << valorGuardadoB) - 1)) != 0;
-
-    if ( c )
+    if (cant >= 32)
+        c = (a != 0);
+    else {
+        uint64_t wide = (uint64_t)a << 32;   // 
+        wide >>= cant;                       // 
+        c = ((uint32_t)wide != 0);           // 
+    }
+    if (c)
         registros[CC] |= 0x20000000;
 }
 
@@ -637,7 +640,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
                 scanf("%d",&valor_usuario);
             }
             else if(modo_lectura == 2){
-                    scanf("%c",&valor_usuario); 
+                    scanf(" %c",&valor_usuario); 
             }else if(modo_lectura == 4){
                     scanf("%o",&valor_usuario);
             }else if(modo_lectura == 8){
@@ -673,7 +676,6 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
                 aux -= 8;
                 valor = valor | (RAM[i] << aux);// es un OR acumulativo
             }      
-
             dire_memoria += cantbytes;
 
             printf("[%d]: ", dire_memoria);
@@ -682,7 +684,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             }
 
             if(((modo_lectura >> 1) & 0x01) == 1){
-                char c = (char)(valor & 0xFF);
+                unsigned char c = (valor & 0xFF);
                 if (c >= 32 && c <= 126) {
                   printf(" %c", c);
                 } else 
