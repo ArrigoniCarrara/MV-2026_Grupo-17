@@ -1,6 +1,6 @@
 
 #include "funciones.c"
-
+#include <time.h>  // Para la operacion RND
 const char *NOMBRE_REG[32] = {
     "IP","OPC","OP1","OP2","LAR","MAR","MBR","-","-","-",
     "EAX","EBX","ECX","EDX","EEX","EFX","AC","CC","-","-",
@@ -105,7 +105,8 @@ void imprimir_binario(unsigned char byte) {
 }
 
 int main(int argc, char *argv[]) {
-    
+    srand((unsigned int) time(NULL)); // Para la operacion RND
+
     FILE *archivo = fopen("prueba.vmx", "rb");
     if (archivo == NULL) {
         printf("Error al abrir el archivo .vmx");

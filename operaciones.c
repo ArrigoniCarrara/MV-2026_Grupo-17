@@ -616,7 +616,7 @@ void RND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         }
         else  
             valor = valorB;
-    uint32_t num_aleatorio =  0 ; // BUSCAR UNA FUNCION RANDOM QUE FUNCIONE
+    uint32_t num_aleatorio =  rand() % (valor + 1) ; // BUSCAR UNA FUNCION RANDOM QUE FUNCIONE
     if( tipoOpA == 0x03 ){
         escrituraEnMemoria(num_aleatorio, 4, valorA);
     }else{
@@ -675,37 +675,42 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             for ( int i = dire_memoria; i < dire_memoria + cantbytes; i++ ){
                 aux -= 8;
                 valor = valor | (RAM[i] << aux);// es un OR acumulativo
-            }      
+            }
+            uint32_t dire_memoria_imprimir = dire_memoria;    
             dire_memoria += cantbytes;
 
-            printf("[%d]: ", dire_memoria);
+            printf("[%d]: ", dire_memoria_imprimir);
             if((modo_lectura & 0x01) == 1){
-                printf(" %d", valor);
+                printf(" %d ", valor);
             }
 
             if(((modo_lectura >> 1) & 0x01) == 1){
                 unsigned char c = (valor & 0xFF);
                 if (c >= 32 && c <= 126) {
-                  printf(" %c", c);
+                  printf(" %c ", c);
                 } else 
-                    printf(" .");   
+                    printf(" . ");   
             }
 
             if(((modo_lectura >> 2) & 0x01) == 1){
                 printf(" 0o");
-                printf("%o", valor);
+                printf("%o ", valor);
             }
 
             if(((modo_lectura >> 3) & 0x01) == 1){
                 printf(" 0x");
-                printf("%08X", valor);
+                printf("%08X ", valor);
             }
 
             if(((modo_lectura >> 4) & 0x01) == 1){ // NO FUNCIONA ARREGLAR
-                printf(" 0b"); 
+               int comenzo = 0;
+               printf("0b");
                 for (int x = 31; x >= 0; x--) {
-                    printf("%d", (valor >> x) & 1); 
+                    int bit = (valor >> x) & 1;
+                    if (bit) comenzo = 1;
+                    if (comenzo) printf("%d", bit);
                 }
+                printf(" ");
             }
             printf("\n");
         }else
