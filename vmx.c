@@ -106,7 +106,24 @@ void imprimir_binario(unsigned char byte) {
 int main(int argc, char *argv[]) {
     srand((unsigned int) time(NULL)); // Para la operacion RND
 
-    FILE *archivo = fopen("prueba.vmx", "rb");
+    if (argc < 2 || argc > 3) {
+        printf("Uso: %s <archivo.vmx> [-d]\n", argv[0]);
+        return -1;
+    }
+
+    char *nombre_archivo = argv[1];
+    int modo_disassembler = 0; // 0 = Ejecución normal, 1 = Desensamblador
+
+    if (argc == 3) {
+        if (strcmp(argv[2], "-d") == 0) {
+            modo_disassembler = 1; 
+        } else {
+            printf("Argumento no reconocido: %s\n", argv[2]);
+            return -1;
+        }
+    }
+
+    FILE *archivo = fopen(nombre_archivo, "rb");
     if (archivo == NULL) {
         printf("Error al abrir el archivo .vmx");
         return -1;
@@ -114,7 +131,7 @@ int main(int argc, char *argv[]) {
 
     // Leer la cabecera completa de 8 bytes
     cabecera_programa p;
-
+    
     if (fread(&p, sizeof(cabecera_programa), 1, archivo) != 1) { 
         printf("Error al leer la cabecera del archivo\n");
         fclose(archivo);
@@ -158,8 +175,8 @@ int main(int argc, char *argv[]) {
     registros[CS] = tabla_seg[0].base; // CS
     registros[DS] = tabla_seg[1].base; // DS
     registros[IP] = registros[CS]; // IP
-
-    desensamblar();
+    if(modo_disassembler == 1)
+        desensamblar();
 
     // Ciclo Principal
      while(error_actual == ERR_NINGUNO && registros[IP] < tabla_seg[1].base && registros[IP] != -1){
