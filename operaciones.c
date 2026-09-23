@@ -35,7 +35,6 @@ void escrituraEnMemoria( int32_t valor, int16_t cantBytes, int32_t valorOp ){
     if ( direccionEnMemoria != -1 ){
             registros[MBR] = valor;
             int aux = cantBytes*8;
-            printf("[MEMORIA] Escribiendo %d bytes en Dir Física [%04X]: Valor %08X\n", cantBytes, direccionEnMemoria, valor);
             for ( int i = direccionEnMemoria; i < direccionEnMemoria + cantBytes; i++  ){
                 aux -= 8;
                 RAM[i] = valor >> (aux) & 0xFF;// dado el valor viene en 32 bits debo hacer determinada logica
@@ -53,7 +52,6 @@ int lecturaEnMemoria( int32_t valorOp, int32_t cantBytes ){
             valor = valor | (RAM[i] << aux);// es un OR acumulativo
         }      
         registros[MBR] = valor;
-        printf("[MEMORIA] Leyendo %d bytes desde Dir Física [%04X]: Valor obtenido %08X\n", cantBytes, direccionEnMemoria, valor);
         return valor;
     }
 
@@ -107,13 +105,11 @@ void ADD( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     if( tipoOpA == 0x03 ){
         valorGuardadoA = lecturaEnMemoria( valorA, 4 );
         escrituraEnMemoria(valorGuardadoA + valorGuardadoB,4, valorA );
-        printf("%d\n", valorGuardadoA + valorGuardadoB);
     }
     else{
          uint8_t nroRegistroA = valorA & 0x0000001F;
          valorGuardadoA = registros[nroRegistroA]; 
          registros[nroRegistroA] += valorGuardadoB; 
-         printf("%d\n",  registros[nroRegistroA]);
     }
 
     // Aca modifico el CC
@@ -148,19 +144,16 @@ void SUB( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     if( tipoOpA == 0x03 ){
         valorGuardadoA = lecturaEnMemoria( valorA, 4 );
         escrituraEnMemoria( valorGuardadoA - valorGuardadoB,4, valorA );
-        printf("%d\n", valorGuardadoA - valorGuardadoB);
     }
     else{
          uint8_t nroRegistroA = valorA & 0x0000001F;
          valorGuardadoA = registros[nroRegistroA];
          registros[nroRegistroA] -= valorGuardadoB; 
-         printf("%d\n",  registros[nroRegistroA]);
     }
 
     // Aca modifico el CC
      registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA - valorGuardadoB;
-    printf("-------------------------Resultado----------------------- %d:\n", resultado);
     if ( resultado == 0 )
         registros[CC] |= 0x40000000;
     if ( resultado < 0 )
@@ -174,8 +167,6 @@ void SUB( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     // acarreo
     uint64_t resulSinSigno = (uint64_t)(uint32_t)valorGuardadoA + (uint64_t)(~((uint32_t)valorGuardadoB)+1);
     // tengo que hacer la resta con complemento A2
-
-    printf("--------------Resultado de carry %llu\n----------------", resulSinSigno);
 
     if (resulSinSigno>> 32 != 0 )
         registros[CC] |= 0x20000000;
@@ -196,13 +187,11 @@ void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     if( tipoOpA == 0x03 ){
         valorGuardadoA = lecturaEnMemoria( valorA, 4 );
         escrituraEnMemoria( valorGuardadoA * valorGuardadoB, 4, valorA );
-        printf("%d\n", valorGuardadoA * valorGuardadoB);
     }
     else{
         uint8_t nroRegistroA = valorA & 0x0000001F;
         valorGuardadoA = registros[nroRegistroA];
          registros[nroRegistroA] *= valorGuardadoB; 
-         printf("%d\n",  registros[nroRegistroA]);
     }
 
      registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
@@ -244,13 +233,11 @@ void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
         if( tipoOpA == 0x03 ){
             valorGuardadoA = lecturaEnMemoria( valorA, 4 );
             escrituraEnMemoria( valorGuardadoA / valorGuardadoB, 4, valorA );
-            printf("%d\n", valorGuardadoA / valorGuardadoB);
         }
         else{
             uint8_t nroRegistroA = valorA & 0x0000001F;
             valorGuardadoA = registros[nroRegistroA];
             registros[nroRegistroA] /= valorGuardadoB; 
-            printf("%d\n",  registros[nroRegistroA]);
         }
     }
 
@@ -679,7 +666,6 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             if ( dire_memoria != -1 ){
                 registros[MBR] = valor_usuario;
                 int aux = cantbytes*8;
-                printf("[MEMORIA] Escribiendo %d bytes en Dir Física [%04X]: Valor %08X\n", cantbytes, dire_memoria, valor_usuario);
                 for ( int i = dire_memoria; i < dire_memoria + cantbytes; i++  ){
                     aux -= 8;
                     RAM[i] = valor_usuario >> (aux) & 0xFF;// dado el valor viene en 32 bits debo hacer determinada logica
@@ -691,7 +677,6 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 
     }else if (valorA == 2){
-        printf("==========ZONA SYSCAL==========\n");
        for(int i = 0; i < cant_valores; i++){
 
         if ( dire_memoria != -1 ){
@@ -742,7 +727,6 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
              return;
 
        }
-       printf("=======================================\n");
     }
 }
 

@@ -67,7 +67,6 @@ void dosOperandos(int32_t *ip){
         registros[OP2] = registros[OP2] << 24;
         registros[OP2] = registros[OP2] | valor_opb;
         
-        printf("[TRACE] DOS OPERANDOS | CodOp: %02X | OpA (Tipo %d): %08X | OpB (Tipo %d): %08X\n", cod_op, tipo_opa, valor_opa, tipo_opb, valor_opb);
         operaciones[cod_op](tipo_opa, tipo_opb, valor_opa, valor_opb);
 } 
 
@@ -95,7 +94,6 @@ void unOperando(int32_t *ip){
         registros[OP1] = registros[OP1] | valor_opa;
         registros[OP2] = tipo_opb;// OP2 = operando B
 
-        printf("[TRACE] UN OPERANDO | CodOp: %02X | OpA (Tipo %d): %08X\n", cod_op, tipo_opa, valor_opa);
         operaciones[cod_op](tipo_opa, tipo_opb, valor_opa, valor_opb);
 } 
 
@@ -121,8 +119,6 @@ void ningunOperando(int32_t *ip){
 
 
 void buscoOperacion(int32_t *ip){
-    printf("\n------------------------------------------------\n");
-    printf("[TRACE] Ejecutando IP: %04X | Opcode RAW: %02X\n", *ip, RAM[*ip]);
         if((RAM[*ip] >> 4 & 0x01) == 1){
             dosOperandos(ip);
         }else if(RAM[*ip] >> 6 != 0){
