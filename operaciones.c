@@ -474,7 +474,7 @@ void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
     // Acarreo
     uint64_t resultadoSinSigno = (uint64_t) valorGuardadoA << (uint64_t)valorGuardadoB;
-    if( resultadoSinSigno >> 32 != 0 || valorGuardadoB >= 32  )
+    if( resultadoSinSigno >> 32 != 0 || (valorGuardadoB >= 32) && valorGuardadoA != 0 )
         registros[CC] |= 0x20000000;
 }
 
@@ -548,6 +548,31 @@ void SAR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         int32_t resultado = valorGuardadoA >> valorGuardadoB;
         registros[nroRegistroA] = resultado;        
     }
+
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+
+    uint32_t resultado = valorGuardadoA >> valorGuardadoB;
+
+    if ( resultado == 0 ) // 
+        registros[CC] |= 0x40000000; // XX XX XX XX 
+
+    if ( resultado < 0 )
+        registros[CC] |= 0x80000000;
+
+    uint32_t a    = (uint32_t)valorGuardadoA;
+    uint32_t cant = (uint32_t)valorGuardadoB;
+
+    int c;
+    if (cant >= 32)
+        c = (a != 0);
+    else {
+        uint64_t wide = (uint64_t)a << 32;   // 
+        wide >>= cant;                       // 
+        c = ((uint32_t)wide != 0);           // 
+    }
+    if (c)
+        registros[CC] |= 0x20000000;
+
 }
 
 void LDL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
@@ -702,7 +727,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
                 printf("%08X ", valor);
             }
 
-            if(((modo_lectura >> 4) & 0x01) == 1){ // NO FUNCIONA ARREGLAR
+            if(((modo_lectura >> 4) & 0x01) == 1){ 
                int comenzo = 0;
                printf("0b");
                 for (int x = 31; x >= 0; x--) {

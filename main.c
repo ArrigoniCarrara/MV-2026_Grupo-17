@@ -1,4 +1,3 @@
-
 #include "funciones.c"
 #include <time.h>  // Para la operacion RND
 const char *NOMBRE_REG[32] = {
@@ -160,6 +159,8 @@ int main(int argc, char *argv[]) {
     registros[DS] = tabla_seg[1].base; // DS
     registros[IP] = registros[CS]; // IP
 
+    desensamblar();
+
     // Ciclo Principal
      while(error_actual == ERR_NINGUNO && registros[IP] < tabla_seg[1].base && registros[IP] != -1){
         buscoOperacion(&registros[IP]); 
@@ -216,9 +217,6 @@ int main(int argc, char *argv[]) {
      printf("AC  : %08X | CC  : %08X\n", registros[AC], registros[CC]);
      printf("CS  : %08X | DS  : %08X\n", registros[CS], registros[DS]);
      printf("================================================\n");
-
-
-     desensamblar();
    }
     fclose(archivo);
     return 1;
