@@ -548,6 +548,30 @@ void SAR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         int32_t resultado = valorGuardadoA >> valorGuardadoB;
         registros[nroRegistroA] = resultado;        
     }
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+
+    uint32_t resultado = valorGuardadoA >> valorGuardadoB;
+
+    if ( resultado == 0 ) // 
+        registros[CC] |= 0x40000000; // XX XX XX XX 
+
+    if ( resultado < 0 )
+        registros[CC] |= 0x80000000;
+
+    uint32_t a    = (uint32_t)valorGuardadoA;
+    uint32_t cant = (uint32_t)valorGuardadoB;
+
+    int c;
+    if (cant >= 32)
+        c = (a != 0);
+    else {
+        uint64_t wide = (uint64_t)a << 32;   // 
+        wide >>= cant;                       // 
+        c = ((uint32_t)wide != 0);           // 
+    }
+    if (c)
+        registros[CC] |= 0x20000000;
+
 }
 
 void LDL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
@@ -574,6 +598,7 @@ void LDL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         valorGuardadoA = registros[nroRegistroA];
         registros[nroRegistroA] = valorGuardadoB | valorGuardadoA;
     }
+    
     
 }
 
@@ -637,17 +662,17 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             printf("[%d]: ", dire_memoria);
             int32_t valor_usuario;
             if(modo_lectura == 1){
-                scanf("%d",&valor_usuario);
+                scanf(" %d",&valor_usuario);
             }
             else if(modo_lectura == 2){
-                    scanf("%c",&valor_usuario); 
+                    scanf(" %c",&valor_usuario); 
             }else if(modo_lectura == 4){
-                    scanf("%o",&valor_usuario);
+                    scanf(" %o",&valor_usuario);
             }else if(modo_lectura == 8){
-                    scanf("%x",&valor_usuario);
+                    scanf(" %x",&valor_usuario);
             }else if(modo_lectura == 16){
                 char bin_str[33]; // Arreglo para almacenar la cadena de ceros y unos
-                scanf("%32s", bin_str); // Se lee el texto ingresado por el usuario
+                scanf(" %32s", bin_str); // Se lee el texto ingresado por el usuario
                 valor_usuario = strtol(bin_str, NULL, 2);
             }
 
