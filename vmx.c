@@ -64,7 +64,7 @@ void desensamblar(){
             tipo_opa = (primerByte >> 4) & 0x03;
             cod_op = primerByte & 0x1F;
 
-            valor_opb = p_tipo_op[tipo_opb](&ip); // mismo orden de lectura que dosOperandos
+            valor_opb = p_tipo_op[tipo_opb](&ip); 
             valor_opa = p_tipo_op[tipo_opa](&ip);
 
             mnem = (cod_op >= 0x10) ? MNEM_DOS[cod_op - 0x10] : "??";
@@ -93,11 +93,11 @@ void desensamblar(){
         for (int i = inicio; i <= ip; i++)
             pos += snprintf(strBytes + pos, sizeof(strBytes) - pos, "%02X ", RAM[i]);
 
-        // %-24s = bytes en hex con ancho fijo 24 (ajustá según tu instrucción más larga)
-        // %-6s  = mnemónico con ancho fijo 6 (el más largo, ej. "JNP"/"STOP", tiene margen)
+        // %-24s bytes en hex con ancho fijo 24 
+        // %-6s mnemónico con ancho fijo 6 
         printf("[%04X] %-24s| %-6s %s\n", inicio, strBytes, mnem, strOperandos);
 
-        ip++; // arranca la próxima instrucción
+        ip++; 
     }
     printf("----------------------------\n\n");
 }
