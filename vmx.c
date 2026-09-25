@@ -55,6 +55,8 @@ void desensamblar(){
         unsigned char tipo_opa, tipo_opb, cod_op;
         int32_t valor_opa = 0, valor_opb = 0;
         char strOpA[16] = "", strOpB[16] = "";
+        char strBytes[32] = "";
+        char strOperandos[40] = "";
         const char *mnem;
 
         if ((primerByte >> 4 & 0x01) == 1){ // dos operandos
@@ -68,10 +70,7 @@ void desensamblar(){
             mnem = (cod_op >= 0x10) ? MNEM_DOS[cod_op - 0x10] : "??";
             formatearOperando(strOpA, tipo_opa, valor_opa);
             formatearOperando(strOpB, tipo_opb, valor_opb);
-
-            printf("[%04X] ", inicio);
-            for (int i = inicio; i <= ip; i++) printf("%02X ", RAM[i]);
-            printf("| %s %s, %s\n", mnem, strOpA, strOpB);
+            snprintf(strOperandos, sizeof(strOperandos), "%s, %s", strOpA, strOpB);
 
         } else if (primerByte >> 6 != 0){ // un operando
             tipo_opa = (primerByte >> 6) & 0x03;
@@ -79,28 +78,28 @@ void desensamblar(){
 
             valor_opa = p_tipo_op[tipo_opa](&ip);
 
-            mnem = (cod_op <= 0x0A) ? MNEM_UNO[cod_op] : "??";
+            mnem = (cod_op <= 0x0A) ? MNEM_UNO[cod_op] : "??"; // si existe le da el valor correspondiente a mnem, si es invalido le da mnem: ?? -> desconocido
             formatearOperando(strOpA, tipo_opa, valor_opa);
-
-            printf("[%04X] ", inicio);
-            for (int i = inicio; i <= ip; i++) printf("%02X ", RAM[i]);
-            printf("| %s %s\n", mnem, strOpA);
+            snprintf(strOperandos, sizeof(strOperandos), "%s", strOpA);
 
         } else { // sin operandos
             cod_op = primerByte & 0x0F;
             mnem = (cod_op == 0x0F) ? "STOP" : "??";
-            printf("[%04X] %02X | %s\n", inicio, primerByte, mnem);
+            strOperandos[0] = '\0';
         }
 
-        ip++; // arranca la proxima instruccion
+        // arma la columna de bytes en hex (ancho variable según cant. de bytes leídos)
+        int pos = 0;
+        for (int i = inicio; i <= ip; i++)
+            pos += snprintf(strBytes + pos, sizeof(strBytes) - pos, "%02X ", RAM[i]);
+
+        // %-24s = bytes en hex con ancho fijo 24 (ajustá según tu instrucción más larga)
+        // %-6s  = mnemónico con ancho fijo 6 (el más largo, ej. "JNP"/"STOP", tiene margen)
+        printf("[%04X] %-24s| %-6s %s\n", inicio, strBytes, mnem, strOperandos);
+
+        ip++; // arranca la próxima instrucción
     }
     printf("----------------------------\n\n");
-}
-
-void imprimir_binario(unsigned char byte) {
-    for (int i = 7; i >= 0; i--) {
-        printf("%d", (byte >> i) & 1);
-    }
 }
 
 int main(int argc, char *argv[]) {
