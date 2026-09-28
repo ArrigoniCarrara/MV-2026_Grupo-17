@@ -194,7 +194,7 @@ void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
          registros[nroRegistroA] *= valorGuardadoB; 
     }
 
-     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA * valorGuardadoB;
     if ( resultado == 0 )
         registros[CC] |= 0x40000000;
@@ -437,17 +437,19 @@ void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     else
         valorGuardadoB = valorB;
     if ( tipoOpA == 0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorA, 4 );
-        escrituraEnMemoria( valorGuardadoA << valorGuardadoB,4, valorA );
+        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
+        uint32_t resultado = valorGuardadoA << valorGuardadoB;
+        escrituraEnMemoria( resultado,4, valorA );
     }
     else{
         uint8_t nroRegistroA = valorA & 0x0000001F;
         valorGuardadoA = registros[nroRegistroA];
-        registros[nroRegistroA] <<= valorGuardadoB;        
+        uint32_t resultado = valorGuardadoA << valorGuardadoB;
+        registros[nroRegistroA] <<= resultado;        
     }
 
     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
-    int32_t resultado = valorGuardadoA << valorGuardadoB;
+    uint32_t resultado = valorGuardadoA << valorGuardadoB;
     if ( resultado == 0 ) // 
         registros[CC] |= 0x40000000; // XX XX XX XX 
 
@@ -478,8 +480,10 @@ void SHR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     else
         valorGuardadoB = valorB;
     if ( tipoOpA == 0x03 ){
+        
         valorGuardadoA = lecturaEnMemoria( valorA, 4 );
-        escrituraEnMemoria( valorGuardadoA >> valorGuardadoB,4, valorA );
+        uint32_t resultado = valorGuardadoA << valorGuardadoB;
+        escrituraEnMemoria( resultado,4, valorA );
     }
     else{
         uint8_t nroRegistroA = valorA & 0x0000001F;
@@ -646,7 +650,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     if(valorA == 1){
 
         for(int i = 0; i < cant_valores; i++){
-            printf("[%d]: ", dire_memoria);
+            printf("[%08X]: ", dire_memoria);
             int32_t valor_usuario;
             if(modo_lectura == 1){
                 scanf("%d",&valor_usuario);
@@ -689,7 +693,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             uint32_t dire_memoria_imprimir = dire_memoria;    
             dire_memoria += cantbytes;
 
-            printf("[%d]: ", dire_memoria_imprimir);
+            printf("[%08X]: ", dire_memoria_imprimir);
             if((modo_lectura & 0x01) == 1){
                 printf(" %d ", valor);
             }
