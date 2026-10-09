@@ -529,7 +529,7 @@ void SAR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     else
         valorGuardadoB = valorB;
     if ( tipoOpA == 0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorA, 4 );
+        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
         int32_t resultado = valorGuardadoA >> valorGuardadoB;
         escrituraEnMemoria( resultado, 4, valorA );
     }

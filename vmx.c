@@ -156,15 +156,17 @@ int main(int argc, char *argv[]) {
     // Inicializamos Registros
     registros[CS] = tabla_seg[0].base; // CS
     registros[DS] = tabla_seg[1].base; // DS
-    registros[IP] = registros[CS]; // IP
+    registros[IP] = registros[CS]; // IP 
     if(modo_disassembler == 1)
         desensamblar();
 
     // Ciclo Principal
      while(error_actual == ERR_NINGUNO && registros[IP] < tabla_seg[1].base && registros[IP] != -1){
         buscoOperacion(&registros[IP]); 
-        if (registros[IP] != -1 && error_actual == ERR_NINGUNO)
-           registros[IP] = registros[IP] + 1;
+        if (registros[IP] != -1 && error_actual == ERR_NINGUNO){
+            printf("ip: %d\n",registros[IP]);
+            registros[IP] = registros[IP] + 1;
+        }
      }
 
     if (error_actual != ERR_NINGUNO) {
