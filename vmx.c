@@ -153,9 +153,14 @@ int main(int argc, char *argv[]) {
     tabla_seg[1].base = p.tam_codigo;  //Tener en cuenta que en la segunda parte tendremos que calcularlo y no inicializarlo
     tabla_seg[1].tam = TAM_MEMORIA - p.tam_codigo; // Puede haber un error acá tam_codigo tiene valor erroneo
 
+    for (int i = 2; i < TAM_SEG; i++){ // entradas sin usar: -1 (0xFFFFFFFF)
+        tabla_seg[i].base = 0xFFFF;
+        tabla_seg[i].tam = 0xFFFF;
+    }
+
     // Inicializamos Registros
     registros[CS] = tabla_seg[0].base; // CS
-    registros[DS] = tabla_seg[1].base; // DS
+    registros[DS] = 0x00010000; // DS
     registros[IP] = registros[CS]; // IP 
     if(modo_disassembler == 1)
         desensamblar();
@@ -163,10 +168,6 @@ int main(int argc, char *argv[]) {
     // Ciclo Principal
      while(error_actual == ERR_NINGUNO && registros[IP] < tabla_seg[1].base && registros[IP] != -1){
         buscoOperacion(&registros[IP]); 
-        if (registros[IP] != -1 && error_actual == ERR_NINGUNO){
-            printf("ip: %d\n",registros[IP]);
-            registros[IP] = registros[IP] + 1;
-        }
      }
 
     if (error_actual != ERR_NINGUNO) {

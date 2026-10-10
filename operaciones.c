@@ -8,10 +8,29 @@
 #define BIT_C 29
 #define BIT_V 28
 
-int buscaDireccionFisica( int32_t valorOp, int32_t cantBytes ){// lo maximo que puede ser son 3 bytes de valorOp
-    uint8_t codReg = valorOp & 0x00001F;//rescato el codigo de registro
+uint16_t IPdirfisica(){
+    uint16_t seg = registros[IP] >> 16;
+    uint16_t dirfisica = tabla_seg[seg].base;
+    dirfisica += registros[IP] & 0x0000FFFF; 
+    return dirfisica;
+}
+
+void modificoIP(int dirfisica){
+    registros[IP] &= 0xFFFF0000;
+    registros[IP] &= dirfisica - tabla_seg[registros[IP] >> 16].base;
+}
+
+int buscaDireccionFisica( int32_t valorOp, int32_t cantBytes ){
+    int direFisica = 0;
+    uint8_t codReg = valorOp & 0x00001F;
+    if(codReg >= 26 && codReg <= 31){
+        uint16_t seg = registros[codReg] >> 16;
+        direFisica = tabla_seg[seg].base;
+    }else{
+        direFisica = registros[codReg]; 
+    }
+
     int offset = valorOp >> 8;
-    int direFisica = registros[codReg];
     direFisica += offset;
 
     if ( (tabla_seg[1].tam + tabla_seg[1].base < direFisica + cantBytes) || (direFisica < tabla_seg[1].base) ){
@@ -25,7 +44,7 @@ int buscaDireccionFisica( int32_t valorOp, int32_t cantBytes ){// lo maximo que 
         registros[LAR] = 0x00010000;
         registros[LAR] |= offset;
         registros[MAR] = (registros[MAR] & 0xFFFF0000 ) | parteBaja;
-
+        printf("[%04X]\n", direFisica);
         return direFisica;
     }
 }
@@ -644,13 +663,14 @@ void RND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     uint32_t dire_memoria = registros[EDX]; // Donde empiezo a leer o escribir
+    printf("[%04X]\n", dire_memoria);
     uint16_t cant_valores = registros[ECX] & 0x00FF;
     uint16_t cantbytes = registros[ECX] >> 16;
     uint8_t modo_lectura = registros[EAX];
     if(valorA == 1){
 
         for(int i = 0; i < cant_valores; i++){
-            printf("[%08X]: ", dire_memoria);
+            printf("[%03X]: ", dire_memoria);
             int32_t valor_usuario;
             if(modo_lectura == 1){
                 scanf("%d",&valor_usuario);
@@ -693,7 +713,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             uint32_t dire_memoria_imprimir = dire_memoria;    
             dire_memoria += cantbytes;
 
-            printf("[%08X]: ", dire_memoria_imprimir);
+            printf("[%03X]: ", dire_memoria_imprimir);
             if((modo_lectura & 0x01) == 1){
                 printf(" %d ", valor);
             }
@@ -746,8 +766,8 @@ void JMP( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
         valor = valorA;
     }
 
-    if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor - 1;
+    if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
+         modificoIP(valor);
     else{
         error_actual = ERR_FALLO_SEGMENTO;
     }
@@ -770,11 +790,11 @@ void JP( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         valor = valorA;
     }
 
-    if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor - 1;
-    else{
-        error_actual = ERR_FALLO_SEGMENTO;
-    }
+    if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
+         modificoIP(valor);
+        else{
+          error_actual = ERR_FALLO_SEGMENTO;
+        }
 
     }
      
@@ -796,11 +816,11 @@ void JN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         valor = valorA;
     }
 
-    if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor - 1;
-    else{
-        error_actual = ERR_FALLO_SEGMENTO;
-    }
+    if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
+         modificoIP(valor);
+        else{
+          error_actual = ERR_FALLO_SEGMENTO;
+        }
 
     }
 }
@@ -820,11 +840,11 @@ void JZ (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             valor = valorA;
         }
 
-        if(valor <= tabla_seg[0].tam)
-            registros[IP] = valor - 1;
+        if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
+         modificoIP(valor);
         else{
-            error_actual = ERR_FALLO_SEGMENTO;
-        }   
+          error_actual = ERR_FALLO_SEGMENTO;
+        }
 
     }
 }
@@ -843,11 +863,11 @@ void JC (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     }else{
         valor = valorA;
     }
-    if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor - 1;
-    else{
-        error_actual = ERR_FALLO_SEGMENTO;
-    }
+    if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
+         modificoIP(valor);
+        else{
+          error_actual = ERR_FALLO_SEGMENTO;
+        }
 
     }
 }
@@ -867,11 +887,11 @@ void JV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         valor = valorA;
     }
 
-    if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor - 1;
-    else{
-        error_actual = ERR_FALLO_SEGMENTO;
-    }
+    if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
+         modificoIP(valor);
+        else{
+          error_actual = ERR_FALLO_SEGMENTO;
+        }
 
     }
 }
@@ -893,11 +913,11 @@ void JNP (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
         valor = valorA;
     }
 
-    if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor - 1;
-    else{
-        error_actual = ERR_FALLO_SEGMENTO;
-    }
+    if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
+         modificoIP(valor);
+        else{
+          error_actual = ERR_FALLO_SEGMENTO;
+        }
 
     }
 }
@@ -910,19 +930,19 @@ void JNN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
         int valor;
         if( tipoOpA == 0x03 ){
         valor = lecturaEnMemoria( valorA, 4 );
-    }
-    else if (tipoOpA == 0x01){
-        uint8_t nroRegistroA = valorA & 0x0000001F;
-         valor = registros[nroRegistroA]; 
-    }else{
+        }
+        else if (tipoOpA == 0x01){
+            uint8_t nroRegistroA = valorA & 0x0000001F;
+            valor = registros[nroRegistroA]; 
+        }else{
         valor = valorA;
-    }
+        }
 
-    if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor - 1;
-    else{
-        error_actual = ERR_FALLO_SEGMENTO;
-    }
+        if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
+         modificoIP(valor);
+        else{
+          error_actual = ERR_FALLO_SEGMENTO;
+        }
 
     }
 }
@@ -935,19 +955,19 @@ void JNZ (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
         int valor;
         if( tipoOpA == 0x03 ){
         valor = lecturaEnMemoria( valorA, 4 );
-    }
-    else if (tipoOpA == 0x01){
-        uint8_t nroRegistroA = valorA & 0x0000001F;
+        }
+        else if (tipoOpA == 0x01){
+         uint8_t nroRegistroA = valorA & 0x0000001F;
          valor = registros[nroRegistroA]; 
-    }else{
-        valor = valorA;
-    }
+        }else{
+           valor = valorA;
+        }
 
-    if(valor <= tabla_seg[0].tam)
-        registros[IP] = valor - 1;
-    else{
-        error_actual = ERR_FALLO_SEGMENTO;
-    }
+        if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
+         modificoIP(valor);
+        else{
+          error_actual = ERR_FALLO_SEGMENTO;
+        }
 
     }
 }
