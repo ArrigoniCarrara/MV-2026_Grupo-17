@@ -7,13 +7,12 @@
 #define BIT_Z 30
 #define BIT_C 29
 #define BIT_V 28
-
+//El valor del operando esta conformado por 00xxxxRR siendo xxxx el offset y RR el registro
 int buscaDireccionFisica( int32_t valorOp, int32_t cantBytes ){// lo maximo que puede ser son 3 bytes de valorOp
     uint8_t codReg = valorOp & 0x00001F;//rescato el codigo de registro
     int offset = valorOp >> 8;
-    int direFisica = registros[codReg];
+    int direFisica = tabla_seg[ registros[codReg] >> 16 ].base;
     direFisica += offset;
-
     if ( (tabla_seg[1].tam + tabla_seg[1].base < direFisica + cantBytes) || (direFisica < tabla_seg[1].base) ){
         error_actual = ERR_FALLO_SEGMENTO;
         return -1;
@@ -643,7 +642,7 @@ void RND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 }
 
 void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    uint32_t dire_memoria = registros[EDX]; // Donde empiezo a leer o escribir
+    uint32_t dire_memoria = tabla_seg[ registros[EDX]>>16 ].base + ( registros[EDX] & 0x0000FFFF ) ; // Donde empiezo a leer o escribir
     uint16_t cant_valores = registros[ECX] & 0x00FF;
     uint16_t cantbytes = registros[ECX] >> 16;
     uint8_t modo_lectura = registros[EAX];
