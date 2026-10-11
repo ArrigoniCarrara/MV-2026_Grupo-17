@@ -47,11 +47,12 @@ void formatearOperando(char *buffer, unsigned char tipo, int32_t valor){
 }
 
 void desensamblar(){
-    int32_t ip = 0;
+    uint32_t ipGuardado = registros[IP];   // el desensamblado usa el IP como cursor: lo restauro al final
+    registros[IP] = registros[CS];         // arranca en el primer byte del segmento de código
 
-    while (ip < tabla_seg[0].tam){
-        int32_t inicio = ip;
-        unsigned char primerByte = RAM[ip];
+    while ((registros[IP] & 0xFFFF) < tabla_seg[registros[IP] >> 16].tam){
+        int32_t inicio = IPdirfisica();    // dirección física de la instrucción
+        unsigned char primerByte = RAM[inicio];
         unsigned char tipo_opa, tipo_opb, cod_op;
         int32_t valor_opa = 0, valor_opb = 0;
         char strOpA[16] = "", strOpB[16] = "";
@@ -59,13 +60,15 @@ void desensamblar(){
         char strOperandos[40] = "";
         const char *mnem;
 
+        // Las funciones de operando (registro, inmediato, memoria) avanzan registros[IP]
+        // hasta el ÚLTIMO byte de la instrucción.
         if ((primerByte >> 4 & 0x01) == 1){ // dos operandos
             tipo_opb = (primerByte >> 6) & 0x03;
             tipo_opa = (primerByte >> 4) & 0x03;
             cod_op = primerByte & 0x1F;
 
-            valor_opb = p_tipo_op[tipo_opb](&ip); 
-            valor_opa = p_tipo_op[tipo_opa](&ip);
+            valor_opb = p_tipo_op[tipo_opb]();
+            valor_opa = p_tipo_op[tipo_opa]();
 
             mnem = (cod_op >= 0x10) ? MNEM_DOS[cod_op - 0x10] : "??";
             formatearOperando(strOpA, tipo_opa, valor_opa);
@@ -76,9 +79,9 @@ void desensamblar(){
             tipo_opa = (primerByte >> 6) & 0x03;
             cod_op = primerByte & 0x0F;
 
-            valor_opa = p_tipo_op[tipo_opa](&ip);
+            valor_opa = p_tipo_op[tipo_opa]();
 
-            mnem = (cod_op <= 0x0A) ? MNEM_UNO[cod_op] : "??"; // si existe le da el valor correspondiente a mnem, si es invalido le da mnem: ?? -> desconocido
+            mnem = (cod_op <= 0x0A) ? MNEM_UNO[cod_op] : "??";
             formatearOperando(strOpA, tipo_opa, valor_opa);
             snprintf(strOperandos, sizeof(strOperandos), "%s", strOpA);
 
@@ -88,18 +91,18 @@ void desensamblar(){
             strOperandos[0] = '\0';
         }
 
-        // arma la columna de bytes en hex (ancho variable según cant. de bytes leídos)
+        // bytes de la instrucción: desde 'inicio' hasta el último byte leído (IP actual)
         int pos = 0;
-        for (int i = inicio; i <= ip; i++)
+        for (int i = inicio; i <= IPdirfisica(); i++)
             pos += snprintf(strBytes + pos, sizeof(strBytes) - pos, "%02X ", RAM[i]);
 
-        // %-24s bytes en hex con ancho fijo 24 
-        // %-6s mnemónico con ancho fijo 6 
         printf("[%04X] %-24s| %-6s %s\n", inicio, strBytes, mnem, strOperandos);
 
-        ip++; 
+        registros[IP]++; // próxima instrucción
     }
     printf("----------------------------\n\n");
+
+    registros[IP] = ipGuardado;
 }
 
 int main(int argc, char *argv[]) {
@@ -162,12 +165,13 @@ int main(int argc, char *argv[]) {
     registros[CS] = tabla_seg[0].base; // CS
     registros[DS] = 0x00010000; // DS
     registros[IP] = registros[CS]; // IP 
+
     if(modo_disassembler == 1)
         desensamblar();
 
     // Ciclo Principal
-     while(error_actual == ERR_NINGUNO && registros[IP] < tabla_seg[1].base && registros[IP] != -1){
-        buscoOperacion(&registros[IP]); 
+     while(error_actual == ERR_NINGUNO && registros[IP] != -1 && IPdirfisica() < tabla_seg[registros[IP] >> 16].base + tabla_seg[registros[IP] >> 16].tam){
+        buscoOperacion(); 
      }
 
     if (error_actual != ERR_NINGUNO) {

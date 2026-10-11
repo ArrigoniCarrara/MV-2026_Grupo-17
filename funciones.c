@@ -1,12 +1,5 @@
 #include "operaciones.c"
 
-uint16_t IPdirfisica(){
-    uint16_t seg = registros[IP] >> 16;
-    uint16_t dirfisica = tabla_seg[seg].base;
-    dirfisica += registros[IP] & 0x0000FFFF; 
-    return dirfisica;
-}
-
 int32_t ninguno(){} 
 
 int32_t registro(){
