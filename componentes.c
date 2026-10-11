@@ -1,6 +1,6 @@
 #include <stdint.h> // Tipos de tamaños de BYTES
 #define TAM_MEMORIA 16384
-#define TAM_SEG 7
+#define TAM_SEG 8
 #define CANT_REG 31
 #define IP 0
 #define OPC 1
