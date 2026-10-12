@@ -105,33 +105,74 @@ void desensamblar(){
     registros[IP] = ipGuardado;
 }
 
+static int terminaEn(const char *s, const char *ext){
+    size_t ls = strlen(s), le = strlen(ext);
+    return ls >= le && strcmp(s + ls - le, ext) == 0;
+}
+
 int main(int argc, char *argv[]) {
     srand((unsigned int) time(NULL)); // Para la operacion RND
 
-    if (argc < 2 || argc > 3) {
-        printf("Uso: %s <archivo.vmx> [-d]\n", argv[0]);
+    char    *archivo_vmx = NULL;
+    char    *archivo_vmi = NULL;      // por ahora se acepta pero se ignora
+    uint32_t M = 16384;                  // tamaño de la memoria en KiB (16 por defecto)
+    int      modo_disassembler = 0;   // 0 = ejecucion normal, 1 = -d
+    int      cant_params = 0;
+    char   **params = NULL;
+
+    int i = 1;
+    if (i < argc && terminaEn(argv[i], ".vmx")) 
+        archivo_vmx = argv[i++];
+
+    if (i < argc && terminaEn(argv[i], ".vmi")) 
+        archivo_vmi = argv[i++];
+
+    if (i < argc && strncmp(argv[i], "m=", 2) == 0){
+        char *fin;
+        unsigned long m = strtoul(argv[i] + 2, &fin, 10);
+        if (argv[i][2] == '\0' || *fin != '\0' || m == 0 || m > 64){   // base/tam de tipo_seg son de 16 bits
+            printf("Tamaño de memoria invalido: %s (valor entre 1 y 64 KiB)\n", argv[i]);
+            return -1;
+        }
+        M = (uint32_t) m;
+        i++;
+    }
+
+    if (i < argc && strcmp(argv[i], "-d") == 0){ 
+        modo_disassembler = 1; i++; 
+    }
+
+    if (i < argc && strcmp(argv[i], "-p") == 0){
+        params = &argv[i + 1];
+        cant_params = argc - i - 1;
+        i = argc;                      
+    }
+
+    if (i < argc || (!archivo_vmx && !archivo_vmi)){
+        if (i < argc) printf("Argumento no reconocido o fuera de orden: %s\n", argv[i]);
+        printf("Uso: %s [filename.vmx] [filename.vmi] [m=M] [-d] [-p param1 ... paramN]\n"
+               "Es obligatorio indicar al menos un archivo .vmx o .vmi\n", argv[0]);
         return -1;
     }
 
-    char *nombre_archivo = argv[1];
-    int modo_disassembler = 0; // 0 = Ejecución normal, 1 = Desensamblador
-
-    if (argc == 3) {
-        if (strcmp(argv[2], "-d") == 0) {
-            modo_disassembler = 1; 
-        } else {
-            printf("Argumento no reconocido: %s\n", argv[2]);
-            return -1;
-        }
+    if (!archivo_vmx){
+        printf("La ejecucion desde una imagen .vmi todavia no esta implementada\n");
+        return -1;
     }
 
-    FILE *archivo = fopen(nombre_archivo, "rb");
+    (void) archivo_vmi;
+
+    
+    uint32_t tam_memoria = M * 1024; // CUIDADO CON ESTO
+
+    FILE *archivo = fopen(archivo_vmx, "rb");
     if (archivo == NULL) {
         printf("Error al abrir el archivo .vmx");
         return -1;
     }
 
-    // Leer la cabecera completa de 8 bytes
+    // Leer la cabecera completa 
+    
     cabecera_programa p;
     
     if (fread(&p, sizeof(cabecera_programa), 1, archivo) != 1) { 
