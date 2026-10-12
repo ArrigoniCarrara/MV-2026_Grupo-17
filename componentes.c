@@ -1,7 +1,7 @@
 #include <stdint.h> // Tipos de tamaños de BYTES
-#define TAM_MEMORIA 16384
+#define MAX_MEMORIA 64
 #define TAM_SEG 8
-#define CANT_REG 31
+#define CANT_REG 32
 #define IP 0
 #define OPC 1
 #define OP1 2
@@ -9,6 +9,8 @@
 #define LAR 4
 #define MAR 5 
 #define MBR 6
+#define SP 7
+#define BP 8
 #define EAX 10
 #define EBX 11
 #define ECX 12
@@ -19,14 +21,19 @@
 #define CC 17
 #define CS 26
 #define DS 27
+#define ES 28
+#define SS 29
+#define KS 30
+#define PS 31
 
-unsigned char RAM[TAM_MEMORIA]; // Memoria principal
+unsigned char RAM[MAX_MEMORIA]; // Memoria principal
 
 typedef struct { 
 
-    char identificador[5];  
-    uint8_t version;        
-    uint16_t tam_codigo; 
+    char identificador[5];
+    uint8_t version;
+    uint32_t tam_code, tam_data, tam_extra, tam_stack, tam_const;
+    uint16_t entry;  
 
 } cabecera_programa; // Cabecera de Programa
 
