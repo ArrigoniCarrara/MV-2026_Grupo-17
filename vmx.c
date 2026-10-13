@@ -270,7 +270,7 @@ void inicializo_tabla_segmentos(cabecera_programa *p, uint32_t tam_param){
     ubicoseg(&seg, p->tam_extra, ES);
     ubicoseg(&seg, p->tam_stack, SS);
 
-    registros[SP] = registros[SS] + p->tam_stack; // FALTA INICIALIZAR BP
+    registros[SP] = registros[SS] + p->tam_stack; 
     registros[IP] = registros[CS] + p->entry;
 }
  
@@ -308,11 +308,55 @@ int main(int argc, char *argv[]) {
     }
  
     inicializo_tabla_segmentos(&p, tam_param);
-    if(tam_param != 0){
-        escritura_param(); // Pongo los parametros argv, argc y ret = -1 en la pila 
+
+    if(tam_param != 0){ // Escribo en memoria los parametros
+        int pos_memoria = 0; 
+        uint32_t direcciones[args.cant_params + 1];
+        int indice_dir = 0;
+
+        direcciones[indice_dir] = pos_memoria; 
+        indice_dir++;
+
+        int len_vmx = strlen(args.archivo_vmx); //Primero nombre de archivo
+        for (int car = 0; car < len_vmx; car++) {
+            RAM[pos_memoria] = args.archivo_vmx[car];
+            pos_memoria++;
+        }
+        RAM[pos_memoria] = 0; 
+        pos_memoria++;
+
+        for (int j = 0; j < args.cant_params; j++) { //Resto de parametros
+            direcciones[indice_dir] = pos_memoria;
+            indice_dir++;
+
+            int len_param = strlen(args.params[j]);
+            for (int car = 0; car < len_param; car++) {
+                RAM[pos_memoria] = args.params[j][car];
+                pos_memoria++;
+            }
+            RAM[pos_memoria] = 0; 
+            pos_memoria++;
+        }
+        
+        for (int pos = 0; pos < indice_dir; pos++) { // Argv de la maquina
+            uint32_t dir_actual = direcciones[pos];
+
+            RAM[pos_memoria] = (dir_actual >> 24) & 0xFF;         
+            pos_memoria++;
+
+            RAM[pos_memoria] = (dir_actual >> 16) & 0xFF;         
+            pos_memoria++;
+
+            RAM[pos_memoria] = (dir_actual >> 8) & 0xFF;          
+            pos_memoria++;
+        
+            RAM[pos_memoria] = dir_actual & 0xFF;                 
+            pos_memoria++;
+        }
+        // Pongo los parametros argv, argc y ret = -1 en la pila (A implementar)
     }
     else{
-        //Pongo en la pila ret = 0, argv = -1, argc = -1
+            //Pongo en la pila ret = 0, argv = -1, argc = -1
     }
 
     if(args.modo_disassembler)
