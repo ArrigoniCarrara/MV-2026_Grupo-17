@@ -51,6 +51,7 @@ void escrituraEnMemoria( int32_t valor, int16_t cantBytes, int32_t valorOp ){
     }        
 }
 // solo sirve para operanciones de dos operando, ya que si recupero dos valores siempre son de 4 bytes ( variable valor )
+//Como la funcion devuelve 4 bytes, no extiende el signo, hay que arreglarlo.
 int lecturaEnMemoria( int32_t valorOp, int32_t cantBytes ){
     int direccionEnMemoria = buscaDireccionFisica( valorOp,cantBytes );
     if ( direccionEnMemoria != -1 ){
@@ -60,6 +61,24 @@ int lecturaEnMemoria( int32_t valorOp, int32_t cantBytes ){
             aux -= 8;
             valor = valor | (RAM[i] << aux);// es un OR acumulativo
         }      
+        if ( cantBytes < 4 ){
+            int8_t bitMasSignificativo;
+            switch( cantBytes ){
+                case 1:{
+                    bitMasSignificativo = valor > 7;
+                    if (bitMasSignificativo == 1)
+                        valor |= 0xFFFFFF00;
+                }
+                case 2:{
+                    bitMasSignificativo = valor > 15;
+                    if ( bitMasSignificativo == 1 )
+                        valor |= 0xFFFF0000
+                }
+
+                    
+            }
+        }
+        
         registros[MBR] = valor;
         return valor;
     }
@@ -90,7 +109,8 @@ int32_t pseudonimoOperando(int32_t valorOP) {
 void MOV( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valor;
     if ( tipoOpB == 0x03 ){// si es un operando de memoria voy a tener que ir a buscar el valor
-        valor = lecturaEnMemoria( valorB, 4 );
+        int8_t cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valor = lecturaEnMemoria( valorB, cantBytes );
     }
     else
         if( tipoOpB == 0x01 ){
@@ -101,6 +121,7 @@ void MOV( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
 
     if ( tipoOpA == 0x03 ){
         // si es un operando de memoria voy a tener que ir a escribir 
+        //
         escrituraEnMemoria( valor, 4, valorA );
     }
     else{
