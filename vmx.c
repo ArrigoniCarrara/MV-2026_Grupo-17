@@ -181,7 +181,7 @@ int parsearArgumentos(int argc, char *argv[], argumentos_vm *args){
         return -1;
     }
  
-    // Sin .vmx no hay proceso nuevo, entonces se ignoran los parámetros -p
+    // sin .vmx no hay proceso nuevo, entonces se ignoran los parámetros -p
     if (!args->archivo_vmx){
         args->params      = NULL;
         args->cant_params = 0;
@@ -220,10 +220,10 @@ int leerCabecera(FILE *archivo, cabecera_programa *p){
         return -1;
     }
  
-    memcpy(p->identificador, bytes, 5);
+    memcpy(p->identificador, bytes, 5); // memcpy(destino, origen, n): Copia n bytes de un lugar a otro.
     p->version = bytes[5];
  
-    if (memcmp(p->identificador, FIRMA_VMX, 5) != 0 || p->version != VERSION_VMX){
+    if (memcmp(p->identificador, FIRMA_VMX, 5) != 0 || p->version != VERSION_VMX){ // memcmp(a, b, n): Compara n bytes. Devuelve 0 si son iguales, y un número distinto de cero si no.
         printf("Formato no válido: no se encontró la firma VMX26 o la version no es la correcta\n");
         return -1;
     }
@@ -273,6 +273,58 @@ void inicializo_tabla_segmentos(cabecera_programa *p, uint32_t tam_param){
     registros[SP] = registros[SS] + p->tam_stack; 
     registros[IP] = registros[CS] + p->entry;
 }
+
+int cargoImagen(argumentos_vm *args){
+    FILE *archivo = fopen(args->archivo_vmi, "rb");
+    if (archivo == NULL){
+        printf("Error al abrir el archivo .vmi\n");
+        return -1;
+    }
+
+    uint8_t cabecera_vmi[8];  // leo cabecera .vmi
+    if (fread(cabecera_vmi, 1, 8, archivo) != 8){
+        printf("Error al leer la cabecera del archivo .vmi\n");
+        fclose(archivo);
+        return -1;
+    }
+
+    if (memcmp(cabecera_vmi, "VMI26", 5) != 0 || cabecera_vmi[5] != 1){
+        printf("Formato no válido: no se encontró la firma VMI26 o la version no es la correcta\n");
+        fclose(archivo);
+        return -1;
+    }
+
+    uint32_t memoria_kib = (cabecera_vmi[6] << 8) | cabecera_vmi[7];
+    if (memoria_kib == 0 || memoria_kib * 1024 > sizeof(RAM)){
+        printf("Tamaño de memoria invalido en el archivo .vmi: %u KiB\n", memoria_kib);
+        fclose(archivo);
+        return -1;
+    }
+
+    for (int i = 0; i < 32; i++){       // Leo los registros uno por uno
+        registros[i] = 0;
+        for (int b = 0; b < 4; b++)
+            registros[i] = (registros[i] << 8) | fgetc(archivo);
+    }
+
+    for (int i = 0; i < 8; i++){        // leo la tabla de segmentos
+        tabla_seg[i].base = fgetc(archivo) << 8;
+        tabla_seg[i].base |= fgetc(archivo);
+        tabla_seg[i].tam = fgetc(archivo) << 8;
+        tabla_seg[i].tam |= fgetc(archivo);
+    }
+
+    // Memoria principal completa. En el archivo vmi es la totalidad de la RAM aunque no este ocupada en su totalidad
+    if (fread(RAM, 1, memoria_kib * 1024, archivo) != memoria_kib * 1024){
+        printf("Error: el archivo .vmi esta incompleto\n");
+        fclose(archivo);
+        return -1;
+    }
+    fclose(archivo);
+
+    args->memoria_kib = memoria_kib;    // M sale de la imagen (se ignora m=)
+    return 0;
+}
  
 int main(int argc, char *argv[]) {
     srand((unsigned int) time(NULL)); // Para la operacion RND
@@ -281,107 +333,124 @@ int main(int argc, char *argv[]) {
     if (parsearArgumentos(argc, argv, &args) != 0)
         return -1;
  
-    if (!args.archivo_vmx){
-        printf(".vmi todavia no esta implementado\n");
-        return -1;
-    }
- 
-    uint32_t tam_memoria = args.memoria_kib * 1024;
- 
-    FILE *archivo = fopen(args.archivo_vmx, "rb");
-    if (archivo == NULL) {
-        printf("Error al abrir el archivo .vmx\n");
-        return -1;
-    }
- 
-    cabecera_programa p;
-    if (leerCabecera(archivo, &p) != 0){
-        fclose(archivo);
-        return -1;
-    }
- 
-    uint32_t tam_param = tamParamSegment(&args);
-    if (!cabeceraEntraEnMemoria(&p, tam_param, tam_memoria)){
-        printf("ERROR: memoria insuficiente para alojar el proceso\n");
-        fclose(archivo);
-        return -1;
-    }
- 
-    inicializo_tabla_segmentos(&p, tam_param);
+    if (args.archivo_vmx != NULL){
 
-    if(tam_param != 0){ // Escribo en memoria los parametros
-        int pos_memoria = 0; 
-        uint32_t direcciones[args.cant_params + 1];
-        int indice_dir = 0;
-
-        direcciones[indice_dir] = pos_memoria; 
-        indice_dir++;
-
-        int len_vmx = strlen(args.archivo_vmx); //Primero nombre de archivo
-        for (int car = 0; car < len_vmx; car++) {
-            RAM[pos_memoria] = args.archivo_vmx[car];
-            pos_memoria++;
+        uint32_t tam_memoria = args.memoria_kib * 1024;
+ 
+        FILE *archivo = fopen(args.archivo_vmx, "rb");
+        if (archivo == NULL) {
+            printf("Error al abrir el archivo .vmx\n");
+            return -1;
         }
-        RAM[pos_memoria] = 0; 
-        pos_memoria++;
-
-        for (int j = 0; j < args.cant_params; j++) { //Resto de parametros
-            direcciones[indice_dir] = pos_memoria;
-            indice_dir++;
-
-            int len_param = strlen(args.params[j]);
-            for (int car = 0; car < len_param; car++) {
-                RAM[pos_memoria] = args.params[j][car];
-                pos_memoria++;
-            }
-            RAM[pos_memoria] = 0; 
-            pos_memoria++;
+ 
+        cabecera_programa p;
+        if (leerCabecera(archivo, &p) != 0){
+            fclose(archivo);
+            return -1;
         }
-        
-        for (int pos = 0; pos < indice_dir; pos++) { // Argv de la maquina
-            uint32_t dir_actual = direcciones[pos];
-
-            RAM[pos_memoria] = (dir_actual >> 24) & 0xFF;         
-            pos_memoria++;
-
-            RAM[pos_memoria] = (dir_actual >> 16) & 0xFF;         
-            pos_memoria++;
-
-            RAM[pos_memoria] = (dir_actual >> 8) & 0xFF;          
-            pos_memoria++;
-        
-            RAM[pos_memoria] = dir_actual & 0xFF;                 
-            pos_memoria++;
+ 
+        uint32_t tam_param = tamParamSegment(&args);
+        if (!cabeceraEntraEnMemoria(&p, tam_param, tam_memoria)){
+            printf("ERROR: memoria insuficiente para alojar el proceso\n");
+            fclose(archivo);
+            return -1;
         }
-        // Pongo los parametros argv, argc y ret = -1 en la pila (A implementar)
-    }
-    else{
-            //Pongo en la pila ret = 0, argv = -1, argc = -1 (o algo asi, fijarse en la especificacion) 
-    }
+ 
+        inicializo_tabla_segmentos(&p, tam_param);
 
-    uint32_t base_code = tabla_seg[registros[CS] >> 16].base;   // dirección física donde empieza el Code Segment
-    if (fread(&RAM[base_code], 1, p.tam_code, archivo) != p.tam_code){
-        printf("Error: el archivo .vmx esta incompleto\n");
-        fclose(archivo);
-        return -1;
-    }
-
-    if (p.tam_const != 0){
-        uint32_t base_const = tabla_seg[registros[KS] >> 16].base;
-        if (fread(&RAM[base_const], 1, p.tam_const, archivo) != p.tam_const){
+        // Cargo el Code Segment y el Const Segment 
+        uint32_t base_code = tabla_seg[registros[CS] >> 16].base;   // dirección física donde empieza el Code Segment
+        if (fread(&RAM[base_code], 1, p.tam_code, archivo) != p.tam_code){
             printf("Error: el archivo .vmx esta incompleto\n");
             fclose(archivo);
             return -1;
         }
+
+        if (p.tam_const != 0){
+            uint32_t base_const = tabla_seg[registros[KS] >> 16].base;
+            if (fread(&RAM[base_const], 1, p.tam_const, archivo) != p.tam_const){
+                printf("Error: el archivo .vmx esta incompleto\n");
+                fclose(archivo);
+                return -1;
+            }
+        }
+        fclose(archivo);
+
+        if(tam_param != 0){ // Escribo en memoria los parametros (Param Segment)
+            int pos_memoria = 0; 
+            uint32_t direcciones[args.cant_params + 1];
+            int indice_dir = 0;
+
+            direcciones[indice_dir] = pos_memoria; 
+            indice_dir++;
+
+            int len_vmx = strlen(args.archivo_vmx); //Primero nombre de archivo
+            for (int car = 0; car < len_vmx; car++) {
+                RAM[pos_memoria] = args.archivo_vmx[car];
+                pos_memoria++;
+            }
+            RAM[pos_memoria] = 0; 
+            pos_memoria++;
+
+            for (int j = 0; j < args.cant_params; j++) { //Resto de parametros
+                direcciones[indice_dir] = pos_memoria;
+                indice_dir++;
+
+                int len_param = strlen(args.params[j]);
+                for (int car = 0; car < len_param; car++) {
+                    RAM[pos_memoria] = args.params[j][car];
+                    pos_memoria++;
+                }
+                RAM[pos_memoria] = 0; 
+                pos_memoria++;
+            }
+            
+            for (int pos = 0; pos < indice_dir; pos++) { // Argv de la maquina
+                uint32_t dir_actual = direcciones[pos];
+
+                RAM[pos_memoria] = (dir_actual >> 24) & 0xFF;         
+                pos_memoria++;
+
+                RAM[pos_memoria] = (dir_actual >> 16) & 0xFF;         
+                pos_memoria++;
+
+                RAM[pos_memoria] = (dir_actual >> 8) & 0xFF;          
+                pos_memoria++;
+            
+                RAM[pos_memoria] = dir_actual & 0xFF;                 
+                pos_memoria++;
+            }
+        }
+
+        // PENDIENTE: pila inicial, se apila SIEMPRE (con o sin parametros), desde el tope:
+        //   retorno = -1, argc (0 sin parametros, cant_params + 1 con parametros),
+        //   argv (-1 sin parametros, o el puntero al arreglo argv dentro del Param Segment)
+        //   Usar el mismo chequeo de stack overflow que va a necesitar PUSH.
+
+        if (args.archivo_vmi != NULL){
+            // .vmx + .vmi
+            // en cada breakpoint (SYS F) generar la imagen en args.archivo_vmi
+            // (cabecera "VMI26" + registros + tabla de segmentos + toda la memoria, en big endian).
+            // SYS esta en operaciones.c y no ve args: guardar archivo_vmi y memoria_kib en globales.
+        }
+        else{
+            // Solo .vmx
+            // Los breakpoints (SYS F) se ignoran porque no hay donde guardar la imagen.
+        }
+    }
+    else{
+        //Solo .vmi
+        if (cargoImagen(&args) != 0)
+            return -1;
     }
 
-    if(args.modo_disassembler)
+    if(args.modo_disassembler){
         desensamblar();
- 
-    // Ciclo Principal
-     while(error_actual == ERR_NINGUNO && registros[IP] != -1 && IPdirfisica() < tabla_seg[registros[IP] >> 16].base + tabla_seg[registros[IP] >> 16].tam){
+    }
+
+    while(error_actual == ERR_NINGUNO && registros[IP] != -1 && IPdirfisica() < tabla_seg[registros[IP] >> 16].base + tabla_seg[registros[IP] >> 16].tam){
         buscoOperacion();
-     }
+    }
  
     if (error_actual != ERR_NINGUNO) {
         printf("\n================================================\n");
@@ -401,6 +470,6 @@ int main(int argc, char *argv[]) {
         registros[IP] = -1; // dejamos IP consistente con el comportamiento de STOP
     }
  
-    fclose(archivo);
     return 1;
 }
+ 
