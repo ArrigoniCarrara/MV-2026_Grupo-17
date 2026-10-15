@@ -356,7 +356,23 @@ int main(int argc, char *argv[]) {
         // Pongo los parametros argv, argc y ret = -1 en la pila (A implementar)
     }
     else{
-            //Pongo en la pila ret = 0, argv = -1, argc = -1
+            //Pongo en la pila ret = 0, argv = -1, argc = -1 (o algo asi, fijarse en la especificacion) 
+    }
+
+    uint32_t base_code = tabla_seg[registros[CS] >> 16].base;   // dirección física donde empieza el Code Segment
+    if (fread(&RAM[base_code], 1, p.tam_code, archivo) != p.tam_code){
+        printf("Error: el archivo .vmx esta incompleto\n");
+        fclose(archivo);
+        return -1;
+    }
+
+    if (p.tam_const != 0){
+        uint32_t base_const = tabla_seg[registros[KS] >> 16].base;
+        if (fread(&RAM[base_const], 1, p.tam_const, archivo) != p.tam_const){
+            printf("Error: el archivo .vmx esta incompleto\n");
+            fclose(archivo);
+            return -1;
+        }
     }
 
     if(args.modo_disassembler)
