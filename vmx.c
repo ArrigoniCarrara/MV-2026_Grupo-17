@@ -464,6 +464,12 @@ int main(int argc, char *argv[]) {
             case ERR_FALLO_SEGMENTO:
                 printf("ERROR: fallo de segmento - ejecucion abortada\n");
                 break;
+            case ERR_OVERFLOW:
+                printf("ERROR: STACK overflow - ejecucion abortada\n");
+                break;
+            case ERR_UNDERFLOW:
+                printf("ERROR: STACK underflow - ejecucion abortada\n");
+                break;
             default:
                 break;
         }

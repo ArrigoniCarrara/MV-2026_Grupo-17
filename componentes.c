@@ -1,7 +1,7 @@
 #include <stdint.h> // Tipos de tamaños de BYTES
-#define TAM_MEMORIA 16384
+#define MAX_MEMORIA 64
 #define TAM_SEG 8
-#define CANT_REG 31
+#define CANT_REG 32
 #define IP 0
 #define OPC 1
 #define OP1 2
@@ -26,13 +26,14 @@
 #define KS 30
 #define PS 31
 
-unsigned char RAM[TAM_MEMORIA]; // Memoria principal
+unsigned char RAM[MAX_MEMORIA]; // Memoria principal
 
 typedef struct { 
 
-    char identificador[5];  
-    uint8_t version;        
-    uint16_t tam_codigo; 
+    char identificador[5];
+    uint8_t version;
+    uint32_t tam_code, tam_data, tam_extra, tam_stack, tam_const;
+    uint16_t entry;  
 
 } cabecera_programa; // Cabecera de Programa
 
@@ -50,7 +51,9 @@ typedef enum {
     ERR_NINGUNO = 0,
     ERR_INSTRUCCION_INVALIDA,
     ERR_DIVISION_CERO,
-    ERR_FALLO_SEGMENTO
+    ERR_FALLO_SEGMENTO,
+    ERR_OVERFLOW,
+    ERR_UNDERFLOW
 } tipo_error;
  
 tipo_error error_actual = ERR_NINGUNO; 
