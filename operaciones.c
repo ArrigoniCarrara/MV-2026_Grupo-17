@@ -39,7 +39,6 @@ int buscaDireccionFisica( int32_t valorOp, int32_t cantBytes ){
 }
 
 void escrituraEnMemoria( int32_t valor, int16_t cantBytes, int32_t valorOp ){
-
     int direccionEnMemoria = buscaDireccionFisica( valorOp, cantBytes );
     if ( direccionEnMemoria != -1 ){
             registros[MBR] = valor;
@@ -63,26 +62,20 @@ int lecturaEnMemoria( int32_t valorOp, int32_t cantBytes ){
         }      
         if ( cantBytes < 4 ){
             int8_t bitMasSignificativo;
-            switch( cantBytes ){
-                case 1:{
-                    bitMasSignificativo = valor > 7;
-                    if (bitMasSignificativo == 1)
-                        valor |= 0xFFFFFF00;
-                }
-                case 2:{
-                    bitMasSignificativo = valor > 15;
-                    if ( bitMasSignificativo == 1 )
-                        valor |= 0xFFFF0000
-                }
-
-                    
+            if ( cantBytes == 1 ){
+                bitMasSignificativo = valor >> 7;
+                if ( bitMasSignificativo == 1 )
+                    valor |= 0xFFFFFF00;
+            }
+            else{
+                bitMasSignificativo = valor >> 15;
+                if ( bitMasSignificativo == 1 )
+                    valor |= 0xFFFF0000;
             }
         }
-        
         registros[MBR] = valor;
         return valor;
     }
-
 }
 
 // Devuele el valor del la parte del registro pedida, si se pide el ultimo byte por ejemplo devuelve 4 bytes pero solo maximo en los dos primeros(si no es ek registro completo) tiene datos, los demas son parte del signo
@@ -91,7 +84,7 @@ int32_t pseudonimoOperando(int32_t valorOP) {
     uint8_t pseudonimo = (valorOP >> 5) & 0x03;    // Bits 5-6
     int32_t valor = registros[nroRegistroOpB];
     switch (pseudonimo) {
-        case 0x01: // Es el caso de que solo hagarro el byte menos significativo del registro
+        case 0x01: // Es el caso de que solo agarro el byte menos significativo del registro
             return (int8_t)(valor & 0xFF);
             
         case 0x02: // Toma el segundo byte menos significativo del registro
@@ -108,8 +101,9 @@ int32_t pseudonimoOperando(int32_t valorOP) {
 
 void MOV( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valor;
+    int8_t cantBytes;
     if ( tipoOpB == 0x03 ){// si es un operando de memoria voy a tener que ir a buscar el valor
-        int8_t cantBytes = ( valorB >> 5 ) & 0x00000007;
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
         valor = lecturaEnMemoria( valorB, cantBytes );
     }
     else
@@ -121,8 +115,8 @@ void MOV( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
 
     if ( tipoOpA == 0x03 ){
         // si es un operando de memoria voy a tener que ir a escribir 
-        //
-        escrituraEnMemoria( valor, 4, valorA );
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        escrituraEnMemoria( valor, cantBytes, valorA );
     }
     else{
         // no nos atajamos si nos viene un opA inmediato.
@@ -159,8 +153,10 @@ void MOV( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
 
 void ADD( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valorGuardadoB, valorGuardadoA;
+    int8_t cantBytes;
     if ( tipoOpB == 0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorB, 4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB, cantBytes );
     }
     else 
         if(tipoOpB == 0x01 ){
@@ -170,8 +166,9 @@ void ADD( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
             valorGuardadoB = valorB;
 
     if( tipoOpA == 0x03 ){
-        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
-        escrituraEnMemoria(valorGuardadoA + valorGuardadoB,4, valorA );
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valorGuardadoA = lecturaEnMemoria( valorA, cantBytes );
+        escrituraEnMemoria(valorGuardadoA + valorGuardadoB, cantBytes , valorA );
     }
     else{
         // no nos atajamos si nos viene un opA inmediato.
@@ -217,9 +214,11 @@ void ADD( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
 }
 
 void SUB( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-        int valorGuardadoB, valorGuardadoA;
+    int valorGuardadoB, valorGuardadoA;
+    int8_t cantBytes;
     if ( tipoOpB == 0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorB, 4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB, cantBytes );
     }
     else 
         if(tipoOpB == 0x01 ){
@@ -228,8 +227,9 @@ void SUB( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
         else
             valorGuardadoB = valorB;
     if( tipoOpA == 0x03 ){
-        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
-        escrituraEnMemoria( valorGuardadoA - valorGuardadoB,4, valorA );
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valorGuardadoA = lecturaEnMemoria( valorA, cantBytes );
+        escrituraEnMemoria( valorGuardadoA - valorGuardadoB,cantBytes, valorA );
     }
     else{
         // no nos atajamos si nos viene un opA inmediato.
@@ -258,18 +258,16 @@ void SUB( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     }
 
     // Aca modifico el CC
-     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA - valorGuardadoB;
     if ( resultado == 0 )
         registros[CC] |= 0x40000000;
     if ( resultado < 0 )
         registros[CC] |= 0x80000000;
-
         // Overflow:
     int64_t resultadoConSigno = (int64_t) valorGuardadoA  - (int64_t)valorGuardadoB;
     if (  resultadoConSigno > INT32_MAX ||  resultadoConSigno < INT32_MIN )
         registros[CC] |= 0x10000000;
-
     // acarreo
     uint64_t resulSinSigno = (uint64_t)(uint32_t)valorGuardadoA + (uint64_t)(~((uint32_t)valorGuardadoB)+1);
     // tengo que hacer la resta con complemento A2
@@ -277,11 +275,12 @@ void SUB( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     if (resulSinSigno>> 32 != 0 )
         registros[CC] |= 0x20000000;
 }
-
 void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valorGuardadoB, valorGuardadoA;
+    int8_t cantBytes;
     if ( tipoOpB == 0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorB, 4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB, cantBytes );
     }
     else 
         if(tipoOpB == 0x01 ){
@@ -290,8 +289,9 @@ void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         else
             valorGuardadoB = valorB;
     if( tipoOpA == 0x03 ){
-        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
-        escrituraEnMemoria( valorGuardadoA * valorGuardadoB, 4, valorA );
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valorGuardadoA = lecturaEnMemoria( valorA, cantBytes );
+        escrituraEnMemoria( valorGuardadoA * valorGuardadoB, cantBytes, valorA );
     }
     else{
         // no nos atajamos si nos viene un opA inmediato.
@@ -318,7 +318,6 @@ void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         else
             registros[nroRegistroA] *= valorGuardadoB; 
     }
-
     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     int32_t resultado = valorGuardadoA * valorGuardadoB;
     if ( resultado == 0 )
@@ -338,8 +337,10 @@ void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valorGuardadoB, valorGuardadoA;
+    int8_t cantBytes;
     if ( tipoOpB == 0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorB, 4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB, cantBytes );
     }
     else 
         if(tipoOpB == 0x01 ){
@@ -347,7 +348,6 @@ void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
         }
         else
             valorGuardadoB = valorB;
-
     if(valorGuardadoB == 0){
         error_actual = ERR_DIVISION_CERO;
         return;
@@ -355,8 +355,9 @@ void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
     else{
 
         if( tipoOpA == 0x03 ){
-            valorGuardadoA = lecturaEnMemoria( valorA, 4 );
-            escrituraEnMemoria( valorGuardadoA / valorGuardadoB, 4, valorA );
+            cantBytes = ( valorA >> 5 ) & 0x00000007;
+            valorGuardadoA = lecturaEnMemoria( valorA, cantBytes );
+            escrituraEnMemoria( valorGuardadoA / valorGuardadoB, cantBytes, valorA );
         }
         else{
             valorGuardadoA = pseudonimoOperando(valorA);
@@ -384,7 +385,6 @@ void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
                 registros[nroRegistroA] /= valorGuardadoB; 
             }
     }
-
         registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
         registros[AC] = valorGuardadoA % valorGuardadoB;
         int32_t resultado = valorGuardadoA / valorGuardadoB;
@@ -398,8 +398,10 @@ void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
 
 void CMP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valorGuardadoB, valorGuardadoA;
+    int8_t cantBytes;
     if ( tipoOpB == 0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorB, 4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB, cantBytes );
     }
     else 
         if(tipoOpB == 0x01 ){
@@ -407,9 +409,9 @@ void CMP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         }
         else
             valorGuardadoB = valorB;
-    
     if( tipoOpA == 0x03 ){
-        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valorGuardadoA = lecturaEnMemoria( valorA, cantBytes );
     }
     else{
         valorGuardadoA = pseudonimoOperando( valorA );
@@ -436,9 +438,11 @@ void CMP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void AND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valorGuardadoB,valorGuardadoA;
+    int8_t cantBytes;
     registros[CC] &= 0x0FFFFFFF;// registro[CC] = 0x xx xx xx
     if ( tipoOpB ==0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorB, 4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB, cantBytes );
     }
     else
         if( tipoOpB == 0x01 ){
@@ -447,8 +451,9 @@ void AND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         else
             valorGuardadoB = valorB;
     if ( tipoOpA == 0x03 ){
-        valorGuardadoA = lecturaEnMemoria( valorA,4 );
-        escrituraEnMemoria( valorGuardadoA & valorGuardadoB, 4, valorA);
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valorGuardadoA = lecturaEnMemoria( valorA,cantBytes );
+        escrituraEnMemoria( valorGuardadoA & valorGuardadoB, cantBytes, valorA);
     }
     else{
         // no nos atajamos si nos viene un opA inmediato.
@@ -489,9 +494,11 @@ void AND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 //solo afecta a N y Z
 void OR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valorGuardadoB,valorGuardadoA;
+    int8_t cantBytes;
     registros[CC] &= 0x0FFFFFFF;// registro[CC] = 0x xx xx xx
     if ( tipoOpB == 0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorB,4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB,cantBytes );
     }
     else 
         if( tipoOpB == 0x01 ){
@@ -500,8 +507,9 @@ void OR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         else
             valorGuardadoB = valorB;
     if( tipoOpA == 0x03 ){
-        int valorGuardadoA = lecturaEnMemoria( valorA,4 );
-        escrituraEnMemoria( valorGuardadoB | valorGuardadoA, 4, valorA );
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valorGuardadoA = lecturaEnMemoria( valorA,cantBytes );
+        escrituraEnMemoria( valorGuardadoB | valorGuardadoA, cantBytes, valorA );
     }
     else{
         // no nos atajamos si nos viene un opA inmediato.
@@ -541,8 +549,10 @@ void OR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
 //solo afecta a N y Z
 void XOR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valorGuardadoB,valorGuardadoA;
+    int8_t cantBytes;
     if ( tipoOpB == 0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorB,4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB,cantBytes );
     }
     else 
         if( tipoOpB == 0x01 ){
@@ -551,8 +561,9 @@ void XOR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
         else
             valorGuardadoB = valorB;
     if( tipoOpA == 0x03 ){
-        int valorGuardadoA = lecturaEnMemoria( valorA,4 );
-        escrituraEnMemoria( valorGuardadoA ^ valorGuardadoB, 4, valorA );
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valorGuardadoA = lecturaEnMemoria( valorA, cantBytes );
+        escrituraEnMemoria( valorGuardadoA ^ valorGuardadoB, cantBytes, valorA );
     }
     else{
         // no nos atajamos si nos viene un opA inmediato.
@@ -583,7 +594,6 @@ void XOR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     int32_t resultado = valorGuardadoA ^ valorGuardadoB;
     if ( resultado == 0 ) // 
         registros[CC] |= 0x40000000; // XX XX XX XX 
-
     if ( resultado < 0 )
         registros[CC] |= 0x80000000;
     
@@ -592,20 +602,25 @@ void XOR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
 //solo afecta a N y Z
 void SWAP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
      int valorGuardadoB,valorGuardadoA;
+     int8_t cantBytes;
      uint8_t nroRegistroA, nroRegistroOpB;
-    if ( tipoOpB == 0x03 )
-         valorGuardadoB = lecturaEnMemoria(valorB, 4 );
+    if ( tipoOpB == 0x03 ){
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria(valorB, cantBytes );
+    }
     else
         valorGuardadoB = pseudonimoOperando(valorB);
-    
-    if ( tipoOpA == 0x03 )
-         valorGuardadoA = lecturaEnMemoria(valorA, 4 );
+    if ( tipoOpA == 0x03 ){
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valorGuardadoA = lecturaEnMemoria(valorA, cantBytes );
+    }
     else
         valorGuardadoA = pseudonimoOperando( valorGuardadoA );
-    
     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
-    if(tipoOpA == 3)
-        escrituraEnMemoria(valorGuardadoB, 4, valorA);
+    if(tipoOpA == 3){
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        escrituraEnMemoria(valorGuardadoB, cantBytes, valorA);
+    }
     else 
         if (tipoOpA == 2){
             uint8_t nroRegistroA = valorA & 0x000000FF;
@@ -627,8 +642,10 @@ void SWAP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
             else    
                 registros[nroRegistroA] = valorGuardadoB;
         }
-        if(tipoOpB == 3)
-            escrituraEnMemoria(valorGuardadoA, 4, valorB);
+        if(tipoOpB == 3){
+            cantBytes = (valorB >> 7) & 0x00000007;
+            escrituraEnMemoria(valorGuardadoA, cantBytes, valorB);
+        }
         else{
             uint8_t nroRegistroB = valorB & 0x000000FF;
             uint8_t pseudonimo = (valorB >> 5) & 0x03;// Corro los 5 bits del nro de registro 
@@ -661,8 +678,10 @@ void SWAP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
 
 void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valorGuardadoB,valorGuardadoA;
+    int8_t cantBytes;
     if ( tipoOpB == 0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorB,4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB,cantBytes );
     }
     else
         if( tipoOpB == 0x01 ){
@@ -671,7 +690,8 @@ void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     else
         valorGuardadoB = valorB;
     if ( tipoOpA == 0x03 ){
-        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valorGuardadoA = lecturaEnMemoria( valorA, cantBytes );
         uint32_t resultado = valorGuardadoA << valorGuardadoB;
         escrituraEnMemoria( resultado,4, valorA );
     }
@@ -722,8 +742,10 @@ void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void SHR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int32_t valorGuardadoB,valorGuardadoA;
+    int8_t cantBytes;
     if ( tipoOpB == 0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorB,4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB,cantBytes);
     }
     else
         if( tipoOpB == 0x01 ){
@@ -732,8 +754,8 @@ void SHR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     else
         valorGuardadoB = valorB;
     if ( tipoOpA == 0x03 ){
-        
-        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valorGuardadoA = lecturaEnMemoria( valorA, cantBytes );
         uint32_t resultado = valorGuardadoA << valorGuardadoB;
         escrituraEnMemoria( resultado,4, valorA );
     }
@@ -743,18 +765,18 @@ void SHR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         uint32_t resultado;
         uint8_t nroRegistroA = valorA & 0x000000FF;
         uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
-        if ( pseudonimo == 0x01 ){
+        if ( pseudonimo == 0x01 ){// AL, BL, CL, DL, EL, FL
             resultado = (registros[nroRegistroA] & 0x000000FF) >> valorGuardadoB;
             registros[nroRegistroA] &= 0xFFFFFF00; 
             registros[nroRegistroA] |= (resultado & 0x000000FF);
         }
         else
-            if (pseudonimo == 0x02){
+            if (pseudonimo == 0x02){// AH, BH, CH, DH, EH, FH
                 resultado = (((registros[nroRegistroA] >> 8) >> valorGuardadoB) & 0xFF) << 8;
                 registros[nroRegistroA] = (registros[nroRegistroA] & 0xFFFF00FF) | resultado;
             }
         else
-            if (pseudonimo == 0x3){
+            if (pseudonimo == 0x3){// AX, BX, CX, DX, EX, FX
                 resultado = ( registros[nroRegistroA] & 0x0000FFFF ) >> valorGuardadoB; 
                 registros[nroRegistroA] &= 0xFFFF0000;
                 registros[nroRegistroA] |= (resultado & 0x0000FFFF);
@@ -790,8 +812,10 @@ void SHR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void SAR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int32_t valorGuardadoB,valorGuardadoA;
+    int8_t cantBytes;
     if ( tipoOpB == 0x03 ){
-        valorGuardadoB = lecturaEnMemoria( valorB,4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB,cantBytes );
     }
     else
         if( tipoOpB == 0x01 ){
@@ -800,7 +824,8 @@ void SAR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     else
         valorGuardadoB = valorB;
     if ( tipoOpA == 0x03 ){
-        valorGuardadoA = lecturaEnMemoria( valorA, 4 );
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valorGuardadoA = lecturaEnMemoria( valorA, cantBytes );
         int32_t resultado = valorGuardadoA >> valorGuardadoB;
         escrituraEnMemoria( resultado, 4, valorA );
     }
@@ -858,8 +883,10 @@ void SAR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void LDL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valorGuardadoB,valorGuardadoA;
+    int8_t cantBytes;
     if (tipoOpB == 0x03){
-        valorGuardadoB = lecturaEnMemoria( valorB,4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB,cantBytes );
     }
     else
         if( tipoOpB == 0x01 ){
@@ -884,8 +911,10 @@ void LDL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void LDH(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valorGuardadoB,valorGuardadoA;
+    int8_t cantBytes;
     if (tipoOpB == 0x03){
-        valorGuardadoB = lecturaEnMemoria( valorB,4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valorGuardadoB = lecturaEnMemoria( valorB,cantBytes );
     }
     else
         if( tipoOpB == 0x01 ){
@@ -911,8 +940,10 @@ void LDH(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void RND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valor;    
+    int8_t cantBytes;
     if (  tipoOpB == 0x03 ){
-        valor = lecturaEnMemoria( valorB,4 );
+        cantBytes = ( valorB >> 5 ) & 0x00000007;
+        valor = lecturaEnMemoria( valorB,cantBytes );
     }
     else
         if( tipoOpB == 0x01 ){
@@ -1027,66 +1058,58 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void JMP( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valor;
+    int8_t cantBytes;
     if( tipoOpA == 0x03 ){
-        valor = lecturaEnMemoria( valorA, 4 );
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valor = lecturaEnMemoria( valorA, cantBytes );
     }
     else if (tipoOpA == 0x01){
-         uint8_t nroRegistroA = valorA & 0x0000001F;
-         valor = registros[nroRegistroA]; 
-    } else{
+        uint8_t nroRegistroA = valorA & 0x0000001F;
+        valor = pseudonimoOperando(valorA); 
+    } else
         valor = valorA;
-    }
-
     if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
          modificoIP(valor);
-    else{
+    else
         error_actual = ERR_FALLO_SEGMENTO;
-    }
 }
 
 void JP( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int  n = (registros[CC] >> 31) & 1;
     int  z = (registros[CC] >> 30) & 1;
-
+    int8_t cantBytes;
     if(n == 0 && z == 0){
-
         int valor;
-        if( tipoOpA == 0x03 ){
-        valor = lecturaEnMemoria( valorA, 4 );
-    }
-    else if (tipoOpA == 0x01){
-        uint8_t nroRegistroA = valorA & 0x0000001F;
-         valor = registros[nroRegistroA]; 
-    }else{
-        valor = valorA;
-    }
-
+        if( tipoOpA == 0x03 ){        
+            cantBytes = ( valorA >> 5 ) & 0x00000007;
+            valor = lecturaEnMemoria( valorA, cantBytes );
+        }
+        else if (tipoOpA == 0x01){
+            uint8_t nroRegistroA = valorA & 0x0000001F;
+            valor = registros[nroRegistroA]; 
+        }else
+            valor = valorA;
     if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
          modificoIP(valor);
-        else{
-          error_actual = ERR_FALLO_SEGMENTO;
-        }
-
+    else
+        error_actual = ERR_FALLO_SEGMENTO;
     }
-     
 }
 
 void JN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int  n = (registros[CC] >> 31) & 1;
-
+    int8_t cantBytes;
     if(n == 1){
-        
         int valor;
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
         if( tipoOpA == 0x03 ){
-        valor = lecturaEnMemoria( valorA, 4 );
+        valor = lecturaEnMemoria( valorA, cantBytes );
     }
     else if (tipoOpA == 0x01){
         uint8_t nroRegistroA = valorA & 0x0000001F;
-         valor = registros[nroRegistroA]; 
-    }else{
+        valor = registros[nroRegistroA]; 
+    }else
         valor = valorA;
-    }
-
     if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
          modificoIP(valor);
         else{
@@ -1098,15 +1121,15 @@ void JN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void JZ (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int  z = (registros[CC] >> 30) & 1;
-
+    int8_t cantBytes;
     if(z == 1){
         int valor;
         if( tipoOpA == 0x03 ){
-            valor = lecturaEnMemoria( valorA, 4 );
+            cantBytes = ( valorA >> 5 ) & 0x00000007;
+            valor = lecturaEnMemoria( valorA, cantBytes );
         }
         else if (tipoOpA == 0x01){
-            uint8_t nroRegistroA = valorA & 0x0000001F;
-            valor = registros[nroRegistroA]; 
+            valor = pseudonimoOperando(valorA);
         }else{
             valor = valorA;
         }
@@ -1122,18 +1145,19 @@ void JZ (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void JC (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int c = (registros[CC] >> 29) & 1;
+    int8_t cantBytes;
     if(c == 1){
     
         int valor;
         if( tipoOpA == 0x03 ){
-        valor = lecturaEnMemoria( valorA, 4 );
-    }
-    else if (tipoOpA == 0x01){
-        uint8_t nroRegistroA = valorA & 0x0000001F;
-         valor = registros[nroRegistroA]; 
-    }else{
-        valor = valorA;
-    }
+            cantBytes = ( valorA >> 5 ) & 0x00000007;
+            valor = lecturaEnMemoria( valorA, cantBytes );
+        }
+        else if (tipoOpA == 0x01){
+            valor = pseudonimoOperando(valorA);
+        }else{
+            valor = valorA;
+        }
     if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
          modificoIP(valor);
         else{
@@ -1145,18 +1169,19 @@ void JC (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void JV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int v = (registros[CC] >> 28) & 1;
+    int8_t cantBytes;
     if(v == 1){
     
         int valor;
         if( tipoOpA == 0x03 ){
-        valor = lecturaEnMemoria( valorA, 4 );
-    }
-    else if (tipoOpA == 0x01){
-        uint8_t nroRegistroA = valorA & 0x0000001F;
-         valor = registros[nroRegistroA]; 
-    }else{
-        valor = valorA;
-    }
+            cantBytes = ( valorA >> 5 ) & 0x00000007;            
+            valor = lecturaEnMemoria( valorA, cantBytes );
+        }
+        else if (tipoOpA == 0x01){
+            valor = pseudonimoOperando(valorA);
+        }else{
+            valor = valorA;
+        }
 
     if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
          modificoIP(valor);
@@ -1170,19 +1195,19 @@ void JV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 void JNP (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int  n = (registros[CC] >> 31) & 1;
     int  z = (registros[CC] >> 30) & 1;
-
+    int8_t cantBytes;
     if(n == 1 || z == 1){
 
         int valor;
         if( tipoOpA == 0x03 ){
-        valor = lecturaEnMemoria( valorA, 4 );
-    }
-    else if (tipoOpA == 0x01){
-        uint8_t nroRegistroA = valorA & 0x0000001F;
-         valor = registros[nroRegistroA]; 
-    }else{
-        valor = valorA;
-    }
+            cantBytes = ( valorA >> 5 ) & 0x00000007;
+            valor = lecturaEnMemoria( valorA, cantBytes );
+        }
+        else if (tipoOpA == 0x01){
+            valor = pseudonimoOperando(valorA);
+        }else{
+            valor = valorA;
+        }
 
     if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
          modificoIP(valor);
@@ -1195,18 +1220,18 @@ void JNP (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
 
 void JNN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int  n = (registros[CC] >> 31) & 1;
-
+    int8_t cantBytes;
     if(n == 0){
 
         int valor;
         if( tipoOpA == 0x03 ){
-        valor = lecturaEnMemoria( valorA, 4 );
+            cantBytes = ( valorA >> 5 ) & 0x00000007;
+            valor = lecturaEnMemoria( valorA, cantBytes );
         }
         else if (tipoOpA == 0x01){
-            uint8_t nroRegistroA = valorA & 0x0000001F;
-            valor = registros[nroRegistroA]; 
+            valor = pseudonimoOperando(valorA);
         }else{
-        valor = valorA;
+            valor = valorA;
         }
 
         if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
@@ -1219,25 +1244,25 @@ void JNN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
 }
 
 void JNZ (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-     int  z = (registros[CC] >> 30) & 1;
-
+    int  z = (registros[CC] >> 30) & 1;
+    int8_t cantBytes;
     if(z == 0){
 
         int valor;
         if( tipoOpA == 0x03 ){
-        valor = lecturaEnMemoria( valorA, 4 );
+            cantBytes = ( valorA >> 5 ) & 0x00000007;
+            valor = lecturaEnMemoria( valorA, cantBytes );
         }
         else if (tipoOpA == 0x01){
-         uint8_t nroRegistroA = valorA & 0x0000001F;
-         valor = registros[nroRegistroA]; 
+            valor = pseudonimoOperando( valorA );
         }else{
            valor = valorA;
         }
 
         if(valor <= (tabla_seg[registros[IP] >> 16].tam + tabla_seg[registros[IP] >> 16].base)  && valor >= tabla_seg[registros[IP] >> 16].base)
-         modificoIP(valor);
+            modificoIP(valor);
         else{
-          error_actual = ERR_FALLO_SEGMENTO;
+            error_actual = ERR_FALLO_SEGMENTO;
         }
 
     }
@@ -1245,23 +1270,23 @@ void JNZ (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
 
 void NOT ( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
         int valor;
+        int8_t cantBytes;
         if( tipoOpA == 0x03 ){
-            valor = lecturaEnMemoria( valorA, 4 );
+            cantBytes = ( valorA >> 5 ) & 0x00000007;
+            valor = lecturaEnMemoria( valorA, cantBytes );
             valor = ~valor;
             escrituraEnMemoria(valor, 4, valorA);
         }
         else if (tipoOpA == 0x01){
-            uint8_t nroRegistroA = valorA & 0x0000001F;
-            valor = registros[nroRegistroA]; 
+            valor = ~pseudonimoOperando(valorA);
         }else
-            valor = valorA;
+            valor = ~valorA;
 
         registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
         if ( valor < 0 )
             registros[CC] |= 0x80000000;
         if ( valor == 0 )
-            registros[CC] |= 0x40000000;
-        
+            registros[CC] |= 0x40000000;     
 }
 
 void ERROR (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
