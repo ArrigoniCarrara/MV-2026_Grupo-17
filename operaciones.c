@@ -49,8 +49,7 @@ void escrituraEnMemoria( int32_t valor, int16_t cantBytes, int32_t valorOp ){
             }
     }        
 }
-// solo sirve para operanciones de dos operando, ya que si recupero dos valores siempre son de 4 bytes ( variable valor )
-//Como la funcion devuelve 4 bytes, no extiende el signo, hay que arreglarlo.
+
 int lecturaEnMemoria( int32_t valorOp, int32_t cantBytes ){
     int direccionEnMemoria = buscaDireccionFisica( valorOp,cantBytes );
     if ( direccionEnMemoria != -1 ){
@@ -1296,9 +1295,116 @@ void ERROR (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int3
 void STOP( unsigned char opA, unsigned char opB, int32_t valorA, int32_t valorB ){
     registros[IP] = -1;
 }
+
 void RET();
-void PUSH();
-void POP();
+
+void PUSH(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
+    uint16_t seg = registros[SP] >> 16;
+    
+    if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){ 
+        error_actual = ERR_FALLO_SEGMENTO;
+        return;
+    }
+
+    if(registros[SP] - 4 <= registros[SS]){
+        error_actual = ERR_UNDERFLOW;
+        return;
+    }
+
+    uint32_t dirfisica = tabla_seg[seg].base + (registros[SP] & 0xFFFF);
+    uint32_t valor = 0;
+    int aux = dirfisica - 3;
+    for (int i = 0; i < 4; i++){ //REVISAR LUEGO
+        valor = valor << 8 * i;
+        valor = valor | RAM[dirfisica + i];
+    }
+
+    uint8_t cantBytes = 0;
+
+    if ( tipoOpA == 0x03 ){
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        escrituraEnMemoria( valor, cantBytes, valorA );
+    }
+    else{
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t pseudonimo = valorB >> 5;
+        pseudonimo = pseudonimo & 0x3;
+        if ( pseudonimo == 0x01 ){
+            registros[nroRegistroA] = registros[nroRegistroA] & 0xFFFFFF00;
+            registros[nroRegistroA] |= (valor & 0x000000FF);
+        }
+        else
+            if (pseudonimo == 0x02){
+                registros[nroRegistroA] &= 0xFFFF00FF;
+                int32_t aux = valor & 0x000000FF;
+                aux = aux << 8;
+                registros[nroRegistroA] |= aux;
+            }
+        else
+            if (pseudonimo == 0x3){
+                registros[nroRegistroA] &= 0xFFFF0000;
+                registros[nroRegistroA] |= (valor & 0x0000FFFF);
+            }
+        else
+            registros[nroRegistroA] = valor; 
+    }
+    registros[SP] += 4;
+}
+
+void POP(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
+    uint16_t seg = registros[SP] >> 16;
+
+    if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){ 
+        error_actual = ERR_FALLO_SEGMENTO;
+        return;
+    }
+
+    if((registros[SP] & 0xFFFF) + 4 > tabla_seg[seg].tam){
+        error_actual = ERR_UNDERFLOW;
+        return;
+    }
+
+    uint32_t dirfisica = tabla_seg[seg].base + (registros[SP] & 0xFFFF);
+    uint32_t valor = 0;
+    int aux = dirfisica - 3;
+    for (int i = 0; i < 4; i++){ //REVISAR LUEGO
+        valor = valor << 8 * i;
+        valor = valor | RAM[dirfisica + i];
+    }
+
+    uint8_t cantBytes = 0;
+
+    if ( tipoOpA == 0x03 ){
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        escrituraEnMemoria( valor, cantBytes, valorA );
+    }
+    else{
+        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t pseudonimo = valorB >> 5;
+        pseudonimo = pseudonimo & 0x3;
+        if ( pseudonimo == 0x01 ){
+            registros[nroRegistroA] = registros[nroRegistroA] & 0xFFFFFF00;
+            registros[nroRegistroA] |= (valor & 0x000000FF);
+        }
+        else
+            if (pseudonimo == 0x02){
+                registros[nroRegistroA] &= 0xFFFF00FF;
+                int32_t aux = valor & 0x000000FF;
+                aux = aux << 8;
+                registros[nroRegistroA] |= aux;
+            }
+        else
+            if (pseudonimo == 0x3){
+                registros[nroRegistroA] &= 0xFFFF0000;
+                registros[nroRegistroA] |= (valor & 0x0000FFFF);
+            }
+        else
+            registros[nroRegistroA] = valor; 
+    }
+    registros[SP] += 4;
+}
+
 void CALL();
+
 void ( *operaciones[ 32 ] )(unsigned char opA, unsigned char opB, int32_t valorA, int32_t valorB ) 
 = { SYS, JMP, JP, JN, JZ, JC, JV, JNP, JNN, JNZ, NOT, PUSH, POP, CALL, RET, STOP, MOV, ADD, SUB, MUL, DIV, CMP, AND, OR, XOR, SWAP, SHL, SHR, SAR, LDL, LDH, RND };
