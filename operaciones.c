@@ -25,7 +25,7 @@ int buscaDireccionFisica( int32_t valorOp, int32_t cantBytes ){
     uint8_t codReg = valorOp & 0x00001F;
     uint16_t seg = registros[codReg] >> 16; 
     direFisica = tabla_seg[seg].base;
-    int offset = (registros[codReg] & 0x0000FFFF) + (int16_t)valorOp >> 8;
+    int offset = (registros[codReg] & 0x0000FFFF) + (int16_t)(valorOp >> 8);
     direFisica += offset;
 
     if ( seg >= TAM_SEG || (tabla_seg[seg].base == 0xFFFF && tabla_seg[seg].tam == 0xFFFF) || offset < 0 || offset + cantBytes > tabla_seg[seg].tam ){
@@ -1296,65 +1296,52 @@ void STOP( unsigned char opA, unsigned char opB, int32_t valorA, int32_t valorB 
     registros[IP] = -1;
 }
 
-void RET();
+void RET(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
+    POP(1, 0, 0, 0); // tercer parametro es el IP da la casualidad que todo el valor es 0
+}
 
 void PUSH(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
     uint16_t seg = registros[SP] >> 16;
-    
-    if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){ 
+
+    if (registros[SS] == 0xFFFFFFFF || seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
         error_actual = ERR_FALLO_SEGMENTO;
         return;
     }
 
-    if(registros[SP] - 4 <= registros[SS]){
-        error_actual = ERR_UNDERFLOW;
+    if((registros[SP] & 0xFFFF) < 4){
+        error_actual = ERR_OVERFLOW;
         return;
     }
 
-    uint32_t dirfisica = tabla_seg[seg].base + (registros[SP] & 0xFFFF);
     uint32_t valor = 0;
-    int aux = dirfisica - 3;
-    for (int i = 0; i < 4; i++){ //REVISAR LUEGO
-        valor = valor << 8 * i;
-        valor = valor | RAM[dirfisica + i];
-    }
-
     uint8_t cantBytes = 0;
 
     if ( tipoOpA == 0x03 ){
         cantBytes = ( valorA >> 5 ) & 0x00000007;
-        escrituraEnMemoria( valor, cantBytes, valorA );
+        valor = lecturaEnMemoria( valorA, cantBytes );
+        if (error_actual != ERR_NINGUNO)
+            return;
     }
-    else{
-        uint8_t nroRegistroA = valorA & 0x000000FF;
-        uint8_t pseudonimo = valorB >> 5;
-        pseudonimo = pseudonimo & 0x3;
-        if ( pseudonimo == 0x01 ){
-            registros[nroRegistroA] = registros[nroRegistroA] & 0xFFFFFF00;
-            registros[nroRegistroA] |= (valor & 0x000000FF);
-        }
-        else
-            if (pseudonimo == 0x02){
-                registros[nroRegistroA] &= 0xFFFF00FF;
-                int32_t aux = valor & 0x000000FF;
-                aux = aux << 8;
-                registros[nroRegistroA] |= aux;
-            }
-        else
-            if (pseudonimo == 0x3){
-                registros[nroRegistroA] &= 0xFFFF0000;
-                registros[nroRegistroA] |= (valor & 0x0000FFFF);
-            }
-        else
-            registros[nroRegistroA] = valor; 
-    }
-    registros[SP] += 4;
+    else if ( tipoOpA == 0x01 )
+        valor = pseudonimoOperando( valorA );
+    else
+        valor = valorA;
+
+    registros[SP] -= 4;
+    uint32_t dirfisica = tabla_seg[seg].base + (registros[SP] & 0xFFFF);
+    for (int i = 0; i < 4; i++)
+        RAM[dirfisica + i] = (valor >> (24 - 8 * i)) & 0xFF;
 }
 
 void POP(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
+    if (tipoOpA == 0x02){
+        error_actual = ERR_INSTRUCCION_INVALIDA;
+        return;
+    }
+
     uint16_t seg = registros[SP] >> 16;
 
-    if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){ 
+    if (registros[SS] == 0xFFFFFFFF || seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
         error_actual = ERR_FALLO_SEGMENTO;
         return;
     }
@@ -1366,11 +1353,11 @@ void POP(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
 
     uint32_t dirfisica = tabla_seg[seg].base + (registros[SP] & 0xFFFF);
     uint32_t valor = 0;
-    int aux = dirfisica - 3;
-    for (int i = 0; i < 4; i++){ //REVISAR LUEGO
-        valor = valor << 8 * i;
+    for (int i = 0; i < 4; i++){
+        valor = valor << 8;
         valor = valor | RAM[dirfisica + i];
     }
+    registros[SP] += 4;
 
     uint8_t cantBytes = 0;
 
@@ -1379,8 +1366,8 @@ void POP(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         escrituraEnMemoria( valor, cantBytes, valorA );
     }
     else{
-        uint8_t nroRegistroA = valorA & 0x000000FF;
-        uint8_t pseudonimo = valorB >> 5;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
+        uint8_t pseudonimo = valorA >> 5;
         pseudonimo = pseudonimo & 0x3;
         if ( pseudonimo == 0x01 ){
             registros[nroRegistroA] = registros[nroRegistroA] & 0xFFFFFF00;
@@ -1401,10 +1388,12 @@ void POP(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         else
             registros[nroRegistroA] = valor; 
     }
-    registros[SP] += 4;
 }
 
-void CALL();
+void CALL(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
+    PUSH(1, 0, 0, 0); // tercer parametro es el IP da la casualidad que todo el valor es 0
+    JMP(tipoOpA, 0, valorA, 0); // llamo a JMP para que salte a la direccion inmediata valorA
+}
 
 void ( *operaciones[ 32 ] )(unsigned char opA, unsigned char opB, int32_t valorA, int32_t valorB ) 
 = { SYS, JMP, JP, JN, JZ, JC, JV, JNP, JNN, JNZ, NOT, PUSH, POP, CALL, RET, STOP, MOV, ADD, SUB, MUL, DIV, CMP, AND, OR, XOR, SWAP, SHL, SHR, SAR, LDL, LDH, RND };
