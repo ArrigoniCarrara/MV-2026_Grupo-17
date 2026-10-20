@@ -49,10 +49,10 @@ void dosOperandos(){
         tipo_opa = (RAM[IPdirfisica()] >> 4) & 0x03; // obtengo el bit 3 y 4 mas significativo
         cod_op = RAM[IPdirfisica()] & 0x1F;// obtengo los 5 bits menos significativos
 
-        if (cod_op < 0x10) { // los codigos validos de dos operandos van de 0x10 (MOV) a 0x1F (RND)
-            error_actual = ERR_INSTRUCCION_INVALIDA;
-            return;
-        }
+        //if (cod_op < 0x10) { // los codigos validos de dos operandos van de 0x10 (MOV) a 0x1F (RND)
+        //    error_actual = ERR_INSTRUCCION_INVALIDA;
+        //    return;
+        //}
 
         valor_opb = p_tipo_op[tipo_opb]();
         valor_opa = p_tipo_op[tipo_opa]();
@@ -85,10 +85,10 @@ void unOperando(){
         tipo_opa = (RAM[IPdirfisica()] >> 6) & 0x03;
         cod_op = RAM[IPdirfisica()] & 0x0F;
 
-        if (cod_op > 0x0A) { // los codigos validos de un operando van de 0x00 (SYS) a 0x0A (NOT)
-            error_actual = ERR_INSTRUCCION_INVALIDA;
-            return;
-        }
+        //if (cod_op > 0x0A) { // los codigos validos de un operando van de 0x00 (SYS) a 0x0A (NOT)
+        //    error_actual = ERR_INSTRUCCION_INVALIDA;
+        //    return;
+        //}
 
         valor_opa = p_tipo_op[tipo_opa]();
 
@@ -115,10 +115,10 @@ void ningunOperando(){
 
         cod_op = RAM[IPdirfisica()] & 0x0F;
 
-        if (cod_op != 0x0F) { // el unico codigo valido sin operandos es STOP (0x0F)
-            error_actual = ERR_INSTRUCCION_INVALIDA;
-            return;
-        }
+        //if (cod_op != 0x0F) { // el unico codigo valido sin operandos es STOP (0x0F)
+        //    error_actual = ERR_INSTRUCCION_INVALIDA;
+        //    return;
+        //}
         
         registros[OPC] = cod_op;// codigo de operacion
         

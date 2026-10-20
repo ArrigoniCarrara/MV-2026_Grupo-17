@@ -26,7 +26,7 @@
 #define KS 30
 #define PS 31
 
-unsigned char RAM[MAX_MEMORIA]; // Memoria principal
+unsigned char RAM[MAX_MEMORIA * 1024]; // Memoria principal
 
 typedef struct { 
 

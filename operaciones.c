@@ -1296,41 +1296,6 @@ void STOP( unsigned char opA, unsigned char opB, int32_t valorA, int32_t valorB 
     registros[IP] = -1;
 }
 
-void RET(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
-    POP(1, 0, 0, 0); // tercer parametro es el IP da la casualidad que todo el valor es 0
-}
-
-void PUSH(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
-    uint16_t seg = registros[SP] >> 16;
-
-    if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
-        error_actual = ERR_FALLO_SEGMENTO;
-        return;
-    }
-
-    if((registros[SP] & 0xFFFF) < 4){ 
-        error_actual = ERR_OVERFLOW;
-        return;
-    }
-
-    uint32_t valor = 0;
-    uint8_t cantBytes = 0;
-
-    if ( tipoOpA == 0x03 ){
-        cantBytes = ( valorA >> 5 ) & 0x00000007;
-        valor = lecturaEnMemoria( valorA, cantBytes );
-    }
-    else if ( tipoOpA == 0x01 )
-        valor = pseudonimoOperando( valorA );
-    else
-        valor = valorA;
-
-    registros[SP] -= 4;
-    uint32_t dirfisica = tabla_seg[seg].base + (registros[SP] & 0xFFFF);
-    for (int i = 0; i < 4; i++)
-        RAM[dirfisica + i] = (valor >> (24 - 8 * i)) & 0xFF;
-}
-
 void POP(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
     uint16_t seg = registros[SP] >> 16;
 
@@ -1381,6 +1346,42 @@ void POP(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         else
             registros[nroRegistroA] = valor; 
     }
+}
+
+
+void RET(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
+    POP(1, 0, 0, 0); // tercer parametro es el IP da la casualidad que todo el valor es 0
+}
+
+void PUSH(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
+    uint16_t seg = registros[SP] >> 16;
+
+    if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
+        error_actual = ERR_FALLO_SEGMENTO;
+        return;
+    }
+
+    if((registros[SP] & 0xFFFF) < 4){ 
+        error_actual = ERR_OVERFLOW;
+        return;
+    }
+
+    uint32_t valor = 0;
+    uint8_t cantBytes = 0;
+
+    if ( tipoOpA == 0x03 ){
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        valor = lecturaEnMemoria( valorA, cantBytes );
+    }
+    else if ( tipoOpA == 0x01 )
+        valor = pseudonimoOperando( valorA );
+    else
+        valor = valorA; 
+
+    registros[SP] -= 4;
+    uint32_t dirfisica = tabla_seg[seg].base + (registros[SP] & 0xFFFF);
+    for (int i = 0; i < 4; i++)
+        RAM[dirfisica + i] = (valor >> (24 - 8 * i)) & 0xFF;
 }
 
 void CALL(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){

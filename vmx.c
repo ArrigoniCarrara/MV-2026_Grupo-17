@@ -263,7 +263,7 @@ void inicializo_tabla_segmentos(cabecera_programa *p, uint32_t tam_param){
     tabla_seg[0].base = 0;
     int seg = 0;
 
-    ubicoseg(&seg, tam_param, PS); // Me falta agregar los parametros al param segment IMPORTANTE
+    ubicoseg(&seg, tam_param, PS); 
     ubicoseg(&seg, p->tam_const, KS);
     ubicoseg(&seg, p->tam_code, CS);
     ubicoseg(&seg, p->tam_data, DS);
@@ -325,10 +325,52 @@ int cargoImagen(argumentos_vm *args){
     args->memoria_kib = memoria_kib;    // M sale de la imagen (se ignora m=)
     return 0;
 }
- 
+
+void imprimirDebug(uint32_t tam_memoria){
+    if (tam_memoria > sizeof(RAM))
+        tam_memoria = sizeof(RAM);
+
+    printf("\n===== TABLA DE SEGMENTOS =====\n");
+    printf("idx  base  tam   fin\n");
+    for (int i = 0; i < TAM_SEG; i++){
+        printf(" %d   %04X  %04X  ", i, tabla_seg[i].base, tabla_seg[i].tam);
+        if (tabla_seg[i].tam != 0)
+            printf("%04X", tabla_seg[i].base + tabla_seg[i].tam - 1);
+        printf("\n");
+    }
+
+    printf("PS=%08X KS=%08X CS=%08X DS=%08X ES=%08X SS=%08X\n", registros[PS], registros[KS], registros[CS], registros[DS], registros[ES], registros[SS]);
+    printf("IP=%08X SP=%08X BP=%08X\n", registros[IP], registros[SP], registros[BP]);
+
+    printf("\n===== RAM (%u bytes) =====\n", tam_memoria);
+    int repetida = 0;
+    for (uint32_t dir = 0; dir < tam_memoria; dir += 16){
+        if (dir > 0 && memcmp(&RAM[dir], &RAM[dir - 16], 16) == 0){
+            if (!repetida)
+                printf("*\n");
+            repetida = 1;
+            continue;
+        }
+        repetida = 0;
+
+        printf("%04X: ", dir);
+        for (int i = 0; i < 16; i++)
+            printf("%02X ", RAM[dir + i]);
+        printf(" |");
+        for (int i = 0; i < 16; i++){
+            unsigned char c = RAM[dir + i];
+            if (c < 32 || c > 126)
+                c = '.';
+            printf("%c", c);
+        }
+        printf("|\n");
+    }
+    printf("%04X\n\n", tam_memoria);
+}
+
 int main(int argc, char *argv[]) {
     srand((unsigned int) time(NULL)); // Para la operacion RND
- 
+    
     argumentos_vm args;
     if (parsearArgumentos(argc, argv, &args) != 0)
         return -1;
@@ -348,14 +390,14 @@ int main(int argc, char *argv[]) {
             fclose(archivo);
             return -1;
         }
- 
+    
         uint32_t tam_param = tamParamSegment(&args);
         if (!cabeceraEntraEnMemoria(&p, tam_param, tam_memoria)){
             printf("ERROR: memoria insuficiente para alojar el proceso\n");
             fclose(archivo);
             return -1;
         }
- 
+        
         inicializo_tabla_segmentos(&p, tam_param);
 
         // Cargo el Code Segment y el Const Segment 
@@ -365,8 +407,8 @@ int main(int argc, char *argv[]) {
             fclose(archivo);
             return -1;
         }
-
-        if (p.tam_const != 0){ // REVISAR TEMAS CONSTANTES
+        
+        /*if (p.tam_const != 0){ // REVISAR TEMAS CONSTANTES
             uint32_t base_const = tabla_seg[registros[KS] >> 16].base;
             if (fread(&RAM[base_const], 1, p.tam_const, archivo) != p.tam_const){
                 printf("Error: el archivo .vmx esta incompleto\n");
@@ -374,13 +416,13 @@ int main(int argc, char *argv[]) {
                 return -1;
             }
         }
+        */
         fclose(archivo);
 
         if(tam_param != 0){ // Escribo en memoria los parametros (Param Segment)
             int pos_memoria = 0; 
             uint32_t direcciones[args.cant_params + 1];
             int indice_dir = 0;
-
             direcciones[indice_dir] = pos_memoria; 
             indice_dir++;
 
@@ -420,16 +462,16 @@ int main(int argc, char *argv[]) {
                 RAM[pos_memoria] = dir_actual & 0xFF;                 
                 pos_memoria++;
             }
-
             PUSH(2, 0, direcciones[0], 0);
             PUSH(2, 0, args.cant_params, 0);
             PUSH(2, 0, -1, 0);
         }else{
+            
             PUSH(2, 0, -1, 0);
             PUSH(2, 0, 0, 0);
             PUSH(2, 0, -1, 0);
         }
-
+        
         if (args.archivo_vmi != NULL){
             // .vmx + .vmi
             // en cada breakpoint (SYS F) generar la imagen en args.archivo_vmi
@@ -450,7 +492,7 @@ int main(int argc, char *argv[]) {
     if(args.modo_disassembler){
         desensamblar();
     }
-
+    imprimirDebug(args.memoria_kib * 1024);
     while(error_actual == ERR_NINGUNO && registros[IP] != -1 && IPdirfisica() < tabla_seg[registros[IP] >> 16].base + tabla_seg[registros[IP] >> 16].tam){
         buscoOperacion();
     }
@@ -481,4 +523,3 @@ int main(int argc, char *argv[]) {
  
     return 1;
 }
- 
