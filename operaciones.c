@@ -120,7 +120,7 @@ void MOV( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     else{
         // no nos atajamos si nos viene un opA inmediato.
         uint8_t nroRegistroA = valorA & 0x000000FF;
-        uint8_t pseudonimo = valorB >> 5;// Corro los 5 bits del nro de registro
+        uint8_t pseudonimo = valorA >> 5;// Corro los 5 bits del nro de registro
         pseudonimo = pseudonimo & 0x3;// Me quedo solo con los dos bits menos significativos
         if ( pseudonimo == 0x01 ){
             registros[nroRegistroA] = registros[nroRegistroA] & 0xFFFFFF00;
@@ -1288,9 +1288,9 @@ void NOT ( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             registros[CC] |= 0x40000000;     
 }
 
-void ERROR (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    error_actual = ERR_INSTRUCCION_INVALIDA;
-}
+//void ERROR (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
+//    error_actual = ERR_INSTRUCCION_INVALIDA;
+//}
 
 void STOP( unsigned char opA, unsigned char opB, int32_t valorA, int32_t valorB ){
     registros[IP] = -1;
@@ -1303,12 +1303,12 @@ void RET(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
 void PUSH(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
     uint16_t seg = registros[SP] >> 16;
 
-    if (registros[SS] == 0xFFFFFFFF || seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
+    if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
         error_actual = ERR_FALLO_SEGMENTO;
         return;
     }
 
-    if((registros[SP] & 0xFFFF) < 4){
+    if((registros[SP] & 0xFFFF) < 4){ 
         error_actual = ERR_OVERFLOW;
         return;
     }
@@ -1319,8 +1319,6 @@ void PUSH(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     if ( tipoOpA == 0x03 ){
         cantBytes = ( valorA >> 5 ) & 0x00000007;
         valor = lecturaEnMemoria( valorA, cantBytes );
-        if (error_actual != ERR_NINGUNO)
-            return;
     }
     else if ( tipoOpA == 0x01 )
         valor = pseudonimoOperando( valorA );
@@ -1334,14 +1332,9 @@ void PUSH(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
 }
 
 void POP(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
-    if (tipoOpA == 0x02){
-        error_actual = ERR_INSTRUCCION_INVALIDA;
-        return;
-    }
-
     uint16_t seg = registros[SP] >> 16;
 
-    if (registros[SS] == 0xFFFFFFFF || seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
+    if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
         error_actual = ERR_FALLO_SEGMENTO;
         return;
     }

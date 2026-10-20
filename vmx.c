@@ -420,12 +420,15 @@ int main(int argc, char *argv[]) {
                 RAM[pos_memoria] = dir_actual & 0xFF;                 
                 pos_memoria++;
             }
-        }
 
-        // PENDIENTE: pila inicial, se apila SIEMPRE (con o sin parametros), desde el tope:
-        //   retorno = -1, argc (0 sin parametros, cant_params + 1 con parametros),
-        //   argv (-1 sin parametros, o el puntero al arreglo argv dentro del Param Segment)
-        //   Usar el mismo chequeo de stack overflow que va a necesitar PUSH.
+            PUSH(2, 0, direcciones[0], 0);
+            PUSH(2, 0, args.cant_params, 0);
+            PUSH(2, 0, -1, 0);
+        }else{
+            PUSH(2, 0, -1, 0);
+            PUSH(2, 0, 0, 0);
+            PUSH(2, 0, -1, 0);
+        }
 
         if (args.archivo_vmi != NULL){
             // .vmx + .vmi
