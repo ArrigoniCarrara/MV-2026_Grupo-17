@@ -77,6 +77,37 @@ int lecturaEnMemoria( int32_t valorOp, int32_t cantBytes ){
     }
 }
 
+void escribirBE(FILE *f, uint32_t valor, int n){
+    for (int i = n - 1; i >= 0; i--)
+        fputc((valor >> (8 * i)) & 0xFF, f);
+}
+
+void guardarImagen(){
+    if (!hay_vmi || nombre_vmi == NULL)
+        return;
+ 
+    FILE *vmi = fopen(nombre_vmi, "wb");
+
+    if (vmi == NULL){ // si vmi esta vacio
+        return;
+    }
+ 
+    fwrite("VMI26", 1, 5, vmi);
+    fputc(2, vmi);                           
+    escribirBE(vmi, memoria_vm_kib, 2); // Escribo en big endian el tamaño de la memoria
+ 
+    for (int i = 0; i < CANT_REG; i++)
+        escribirBE(vmi, registros[i], 4);
+ 
+    for (int i = 0; i < TAM_SEG; i++){
+        escribirBE(vmi, tabla_seg[i].base, 2); // escribo en dos bytes porque la tabla de segmentos tiene por posicion un 4 bytes
+        escribirBE(vmi, tabla_seg[i].tam, 2);
+    }
+ 
+    fwrite(RAM, 1, memoria_vm_kib * 1024, vmi); // misma manera que en el main
+    fclose(vmi);
+}
+
 // Devuele el valor del la parte del registro pedida, si se pide el ultimo byte por ejemplo devuelve 4 bytes pero solo maximo en los dos primeros(si no es ek registro completo) tiene datos, los demas son parte del signo
 int32_t pseudonimoOperando(int32_t valorOP) {
     uint8_t nroRegistroOpB = valorOP & 0x1F;       // Bits 0-4
@@ -963,6 +994,11 @@ void RND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     
+    if (valorA == 0xF){ //Faltan breakpoints
+        guardarImagen();
+        return;
+    }
+
     uint32_t dire_memoria = tabla_seg[ registros[EDX]>>16 ].base + ( registros[EDX] & 0x0000FFFF );
     uint16_t cant_valores = registros[ECX] & 0x00FF;
     uint16_t cantbytes = registros[ECX] >> 16;

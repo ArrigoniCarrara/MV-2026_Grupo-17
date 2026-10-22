@@ -1,11 +1,11 @@
-#include "funciones.c"
+#include "desensamblador.c"
 #include <time.h>  // Para la operacion RND
-
+ 
 #define MEMORIA_DEFAULT_KIB 16
 #define TAM_CABECERA   18
 #define FIRMA_VMX      "VMX26"
 #define VERSION_VMX    2
-
+ 
 typedef struct {
     char    *archivo_vmx;        // NULL si no se indicó
     char    *archivo_vmi;        // NULL si no se indicó
@@ -14,111 +14,6 @@ typedef struct {
     int      cant_params;        // cantidad de parámetros después de -p
     char   **params;             // apunta dentro de argv (no se copia)
 } argumentos_vm;
-
-char *NOMBRE_REG[32] = {
-    "IP","OPC","OP1","OP2","LAR","MAR","MBR","-","-","-",
-    "EAX","EBX","ECX","EDX","EEX","EFX","AC","CC","-","-",
-    "-","-","-","-","-","-","CS","DS","-","-","-","-"
-};
- 
-// indice = cod_op (0x00 a 0x0A)
-char *MNEM_UNO[] = {
-    "SYS","JMP","JP","JN","JZ","JC","JV","JNP","JNN","JNZ","NOT"
-};
- 
-// indice = cod_op - 0x10 (0x10 a 0x1F)
-char *MNEM_DOS[] = {
-    "MOV","ADD","SUB","MUL","DIV","CMP","AND","OR","XOR","SWAP",
-    "SHL","SHR","SAR","LDL","LDH","RND"
-};
- 
-void formatearOperando(char *buffer, unsigned char tipo, int32_t valor){
-    switch (tipo) {
-        case 0x00: // ninguno
-            buffer[0] = '\0';
-            break;
-        case 0x01: { // registro
-            uint8_t reg = valor & 0x1F;
-            sprintf(buffer, "%s", NOMBRE_REG[reg]);
-            break;
-        }
-        case 0x02: { // inmediato
-            int16_t inm = (int16_t) valor;
-            sprintf(buffer, "%d", inm);
-            break;
-        }
-        case 0x03: { // memoria: [REG+offset]
-            uint8_t reg = valor & 0x1F;
-            int16_t offset = (int16_t)(valor >> 8);
-            if (offset > 0)
-                sprintf(buffer, "[%s+%d]", NOMBRE_REG[reg], offset);
-            else if (offset < 0)
-                sprintf(buffer, "[%s%d]", NOMBRE_REG[reg], offset); // el signo va incluido en %d
-            else
-                sprintf(buffer, "[%s]", NOMBRE_REG[reg]);
-            break;
-        }
-    }
-}
- 
-void desensamblar(){
-    uint32_t ipGuardado = registros[IP];   // el desensamblado usa el IP como cursor: lo restauro al final
-    registros[IP] = registros[CS];         // arranca en el primer byte del segmento de código
- 
-    while ((registros[IP] & 0xFFFF) < tabla_seg[registros[IP] >> 16].tam){
-        int32_t inicio = IPdirfisica();    // dirección física de la instrucción
-        unsigned char primerByte = RAM[inicio];
-        unsigned char tipo_opa, tipo_opb, cod_op;
-        int32_t valor_opa = 0, valor_opb = 0;
-        char strOpA[16] = "", strOpB[16] = "";
-        char strBytes[32] = "";
-        char strOperandos[40] = "";
-        char *mnem;
- 
-        // Las funciones de operando (registro, inmediato, memoria) avanzan registros[IP]
-        // hasta el ÚLTIMO byte de la instrucción.
-        if ((primerByte >> 4 & 0x01) == 1){ // dos operandos
-            tipo_opb = (primerByte >> 6) & 0x03;
-            tipo_opa = (primerByte >> 4) & 0x03;
-            cod_op = primerByte & 0x1F;
- 
-            valor_opb = p_tipo_op[tipo_opb]();
-            valor_opa = p_tipo_op[tipo_opa]();
- 
-            mnem = (cod_op >= 0x10) ? MNEM_DOS[cod_op - 0x10] : "??";
-            formatearOperando(strOpA, tipo_opa, valor_opa);
-            formatearOperando(strOpB, tipo_opb, valor_opb);
-            snprintf(strOperandos, sizeof(strOperandos), "%s, %s", strOpA, strOpB);
- 
-        } else if (primerByte >> 6 != 0){ // un operando
-            tipo_opa = (primerByte >> 6) & 0x03;
-            cod_op = primerByte & 0x0F;
- 
-            valor_opa = p_tipo_op[tipo_opa]();
- 
-            mnem = (cod_op <= 0x0A) ? MNEM_UNO[cod_op] : "??";
-            formatearOperando(strOpA, tipo_opa, valor_opa);
-            snprintf(strOperandos, sizeof(strOperandos), "%s", strOpA);
- 
-        } else { // sin operandos
-            cod_op = primerByte & 0x0F;
-            mnem = (cod_op == 0x0F) ? "STOP" : "??";
-            strOperandos[0] = '\0';
-        }
- 
-        // bytes de la instrucción: desde 'inicio' hasta el último byte leído (IP actual)
-        int pos = 0;
-        for (int i = inicio; i <= IPdirfisica(); i++)
-            pos += snprintf(strBytes + pos, sizeof(strBytes) - pos, "%02X ", RAM[i]);
- 
-        printf("[%04X] %-24s| %-6s %s\n", inicio, strBytes, mnem, strOperandos);
- 
-        registros[IP]++; // próxima instrucción
-    }
-    printf("----------------------------\n\n");
- 
-    registros[IP] = ipGuardado;
-}
  
 int terminaEn(char *s, char *ext){
     size_t ls = strlen(s), le = strlen(ext);
@@ -244,7 +139,7 @@ int cabeceraEntraEnMemoria( cabecera_programa *p, uint32_t tam_param, uint32_t t
     uint32_t total = tam_param + p->tam_const + p->tam_code + p->tam_data + p->tam_extra + p->tam_stack;
     return total <= tam_memoria;
 }
-
+ 
 void ubicoseg(int *seg, uint32_t tam_seg, int reg){
     if(tam_seg != 0){
         tabla_seg[*seg].tam = tam_seg;
@@ -258,62 +153,62 @@ void ubicoseg(int *seg, uint32_t tam_seg, int reg){
         registros[reg] = -1;
     }
 }
-
+ 
 void inicializo_tabla_segmentos(cabecera_programa *p, uint32_t tam_param){
     tabla_seg[0].base = 0;
     int seg = 0;
-
+ 
     ubicoseg(&seg, tam_param, PS); 
     ubicoseg(&seg, p->tam_const, KS);
     ubicoseg(&seg, p->tam_code, CS);
     ubicoseg(&seg, p->tam_data, DS);
     ubicoseg(&seg, p->tam_extra, ES);
     ubicoseg(&seg, p->tam_stack, SS);
-
+ 
     registros[SP] = registros[SS] + p->tam_stack; 
     registros[IP] = registros[CS] + p->entry;
 }
-
+ 
 int cargoImagen(argumentos_vm *args){
     FILE *archivo = fopen(args->archivo_vmi, "rb");
     if (archivo == NULL){
         printf("Error al abrir el archivo .vmi\n");
         return -1;
     }
-
+ 
     uint8_t cabecera_vmi[8];  // leo cabecera .vmi
     if (fread(cabecera_vmi, 1, 8, archivo) != 8){
         printf("Error al leer la cabecera del archivo .vmi\n");
         fclose(archivo);
         return -1;
     }
-
+ 
     if (memcmp(cabecera_vmi, "VMI26", 5) != 0 || cabecera_vmi[5] != 1){
         printf("Formato no válido: no se encontró la firma VMI26 o la version no es la correcta\n");
         fclose(archivo);
         return -1;
     }
-
+ 
     uint32_t memoria_kib = (cabecera_vmi[6] << 8) | cabecera_vmi[7];
     if (memoria_kib == 0 || memoria_kib * 1024 > sizeof(RAM)){
         printf("Tamaño de memoria invalido en el archivo .vmi: %u KiB\n", memoria_kib);
         fclose(archivo);
         return -1;
     }
-
+ 
     for (int i = 0; i < 32; i++){       // Leo los registros uno por uno
         registros[i] = 0;
         for (int b = 0; b < 4; b++)
             registros[i] = (registros[i] << 8) | fgetc(archivo);
     }
-
+ 
     for (int i = 0; i < 8; i++){        // leo la tabla de segmentos
         tabla_seg[i].base = fgetc(archivo) << 8;
         tabla_seg[i].base |= fgetc(archivo);
         tabla_seg[i].tam = fgetc(archivo) << 8;
         tabla_seg[i].tam |= fgetc(archivo);
     }
-
+ 
     // Memoria principal completa. En el archivo vmi es la totalidad de la RAM aunque no este ocupada en su totalidad
     if (fread(RAM, 1, memoria_kib * 1024, archivo) != memoria_kib * 1024){
         printf("Error: el archivo .vmi esta incompleto\n");
@@ -321,15 +216,15 @@ int cargoImagen(argumentos_vm *args){
         return -1;
     }
     fclose(archivo);
-
+ 
     args->memoria_kib = memoria_kib;    // M sale de la imagen (se ignora m=)
     return 0;
 }
-
+// ELIMINAR AL TERMINAR
 void imprimirDebug(uint32_t tam_memoria){
     if (tam_memoria > sizeof(RAM))
         tam_memoria = sizeof(RAM);
-
+ 
     printf("\n===== TABLA DE SEGMENTOS =====\n");
     printf("idx  base  tam   fin\n");
     for (int i = 0; i < TAM_SEG; i++){
@@ -338,10 +233,10 @@ void imprimirDebug(uint32_t tam_memoria){
             printf("%04X", tabla_seg[i].base + tabla_seg[i].tam - 1);
         printf("\n");
     }
-
+ 
     printf("PS=%08X KS=%08X CS=%08X DS=%08X ES=%08X SS=%08X\n", registros[PS], registros[KS], registros[CS], registros[DS], registros[ES], registros[SS]);
     printf("IP=%08X SP=%08X BP=%08X\n", registros[IP], registros[SP], registros[BP]);
-
+ 
     printf("\n===== RAM (%u bytes) =====\n", tam_memoria);
     int repetida = 0;
     for (uint32_t dir = 0; dir < tam_memoria; dir += 16){
@@ -352,7 +247,7 @@ void imprimirDebug(uint32_t tam_memoria){
             continue;
         }
         repetida = 0;
-
+ 
         printf("%04X: ", dir);
         for (int i = 0; i < 16; i++)
             printf("%02X ", RAM[dir + i]);
@@ -367,7 +262,7 @@ void imprimirDebug(uint32_t tam_memoria){
     }
     printf("%04X\n\n", tam_memoria);
 }
-
+ 
 int main(int argc, char *argv[]) {
     srand((unsigned int) time(NULL)); // Para la operacion RND
     
@@ -376,7 +271,7 @@ int main(int argc, char *argv[]) {
         return -1;
  
     if (args.archivo_vmx != NULL){
-
+ 
         uint32_t tam_memoria = args.memoria_kib * 1024;
  
         FILE *archivo = fopen(args.archivo_vmx, "rb");
@@ -399,7 +294,7 @@ int main(int argc, char *argv[]) {
         }
         
         inicializo_tabla_segmentos(&p, tam_param);
-
+ 
         // Cargo el Code Segment y el Const Segment 
         uint32_t base_code = tabla_seg[registros[CS] >> 16].base;   // dirección física donde empieza el Code Segment
         if (fread(&RAM[base_code], 1, p.tam_code, archivo) != p.tam_code){
@@ -418,14 +313,14 @@ int main(int argc, char *argv[]) {
         }
         */
         fclose(archivo);
-
+ 
         if(tam_param != 0){ // Escribo en memoria los parametros (Param Segment)
             int pos_memoria = 0; 
             uint32_t direcciones[args.cant_params + 1];
             int indice_dir = 0;
             direcciones[indice_dir] = pos_memoria; 
             indice_dir++;
-
+ 
             int len_vmx = strlen(args.archivo_vmx); //Primero nombre de archivo
             for (int car = 0; car < len_vmx; car++) {
                 RAM[pos_memoria] = args.archivo_vmx[car];
@@ -433,11 +328,11 @@ int main(int argc, char *argv[]) {
             }
             RAM[pos_memoria] = 0; 
             pos_memoria++;
-
+ 
             for (int j = 0; j < args.cant_params; j++) { //Resto de parametros
                 direcciones[indice_dir] = pos_memoria;
                 indice_dir++;
-
+ 
                 int len_param = strlen(args.params[j]);
                 for (int car = 0; car < len_param; car++) {
                     RAM[pos_memoria] = args.params[j][car];
@@ -449,13 +344,13 @@ int main(int argc, char *argv[]) {
             
             for (int pos = 0; pos < indice_dir; pos++) { // Argv de la maquina
                 uint32_t dir_actual = direcciones[pos];
-
+ 
                 RAM[pos_memoria] = (dir_actual >> 24) & 0xFF;         
                 pos_memoria++;
-
+ 
                 RAM[pos_memoria] = (dir_actual >> 16) & 0xFF;         
                 pos_memoria++;
-
+ 
                 RAM[pos_memoria] = (dir_actual >> 8) & 0xFF;          
                 pos_memoria++;
             
@@ -473,26 +368,31 @@ int main(int argc, char *argv[]) {
         }
         
         if (args.archivo_vmi != NULL){
-            // .vmx + .vmi
-            // en cada breakpoint (SYS F) generar la imagen en args.archivo_vmi
-            // (cabecera "VMI26" + registros + tabla de segmentos + toda la memoria, en big endian).
-            // SYS esta en operaciones.c y no ve args: guardar archivo_vmi y memoria_kib en globales.
+            // .vmx + .vmi: en cada breakpoint (SYS 0xF) se genera la imagen en el .vmi
+            hay_vmi    = 1;
+            nombre_vmi = args.archivo_vmi;
         }
         else{
-            // Solo .vmx
-            // Los breakpoints (SYS F) se ignoran porque no hay donde guardar la imagen.
+            // Solo .vmx: los breakpoints (SYS 0xF) se ignoran porque no hay donde guardar la imagen
+            hay_vmi = 0;
         }
     }
     else{
         //Solo .vmi
         if (cargoImagen(&args) != 0)
             return -1;
+        hay_vmi    = 1;
+        nombre_vmi = args.archivo_vmi;
     }
-
+ 
+    memoria_vm_kib = args.memoria_kib; // SYS breakpoint necesita el tamaño de la memoria
+ 
     if(args.modo_disassembler){
         desensamblar();
     }
+
     imprimirDebug(args.memoria_kib * 1024);
+
     while(error_actual == ERR_NINGUNO && registros[IP] != -1 && IPdirfisica() < tabla_seg[registros[IP] >> 16].base + tabla_seg[registros[IP] >> 16].tam){
         buscoOperacion();
     }

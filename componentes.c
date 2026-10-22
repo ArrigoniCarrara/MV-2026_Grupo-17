@@ -57,3 +57,7 @@ typedef enum {
 } tipo_error;
  
 tipo_error error_actual = ERR_NINGUNO; 
+
+int      hay_vmi     = 0;     
+char    *nombre_vmi  = NULL;  
+uint32_t memoria_vm_kib = 16; 
