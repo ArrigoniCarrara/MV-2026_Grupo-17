@@ -1033,6 +1033,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 
     }else if (valorA == 2){
+    
        for(int i = 0; i < cant_valores; i++){
 
         if ( dire_memoria != -1 ){
@@ -1084,6 +1085,9 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
              return;
 
        }
+    }
+    else if (valorA == 0){
+        system("cls");
     }
 }
 
