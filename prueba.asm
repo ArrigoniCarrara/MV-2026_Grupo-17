@@ -2,6 +2,9 @@
 \\STACK 256
 \\EXTRA 20
 
+NULL EQU -1
+texto EQU "JUAN"
+
 main:   ; leer x (decimal, 1 valor de 4 bytes) en [0]
         mov eax, 0x01
         mov edx, ds

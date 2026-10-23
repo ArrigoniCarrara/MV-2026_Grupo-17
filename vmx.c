@@ -303,7 +303,7 @@ int main(int argc, char *argv[]) {
             return -1;
         }
         
-        /*if (p.tam_const != 0){ // REVISAR TEMAS CONSTANTES
+        if (p.tam_const != 0){ // REVISAR TEMAS CONSTANTES
             uint32_t base_const = tabla_seg[registros[KS] >> 16].base;
             if (fread(&RAM[base_const], 1, p.tam_const, archivo) != p.tam_const){
                 printf("Error: el archivo .vmx esta incompleto\n");
@@ -311,7 +311,7 @@ int main(int argc, char *argv[]) {
                 return -1;
             }
         }
-        */
+        
         fclose(archivo);
  
         if(tam_param != 0){ // Escribo en memoria los parametros (Param Segment)
