@@ -1,9 +1,6 @@
 \\DATA 8                 ; [0] = x (leído), [4] = resultado
 \\STACK 256
-\\EXTRA 20
-
-NULL EQU -1
-texto EQU "JUAN"
+\\EXTRA 0
 
 main:   ; leer x (decimal, 1 valor de 4 bytes) en [0]
         mov eax, 0x01
@@ -11,7 +8,7 @@ main:   ; leer x (decimal, 1 valor de 4 bytes) en [0]
         ldh ecx, 4
         ldl ecx, 1
         sys 0x1
-
+        sys 15
         push [0]
         call f
         add sp, 4
@@ -68,7 +65,6 @@ suma:   push bp
         mov bp, sp
         mov eax, [bp+12]
         add eax, [bp+8]
-        SYS 15
         mov sp, bp
         pop bp
         ret

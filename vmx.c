@@ -369,7 +369,7 @@ int main(int argc, char *argv[]) {
         
         if (args.archivo_vmi != NULL){
             // .vmx + .vmi: en cada breakpoint (SYS 0xF) se genera la imagen en el .vmi
-            hay_vmi    = 1;
+            hay_vmi = 1;
             nombre_vmi = args.archivo_vmi;
         }
         else{
@@ -381,7 +381,7 @@ int main(int argc, char *argv[]) {
         //Solo .vmi
         if (cargoImagen(&args) != 0)
             return -1;
-        hay_vmi    = 1;
+        hay_vmi = 1;
         nombre_vmi = args.archivo_vmi;
     }
  
@@ -395,6 +395,8 @@ int main(int argc, char *argv[]) {
 
     while(error_actual == ERR_NINGUNO && registros[IP] != -1 && IPdirfisica() < tabla_seg[registros[IP] >> 16].base + tabla_seg[registros[IP] >> 16].tam){
         buscoOperacion();
+        if (breakpoint_enter && error_actual == ERR_NINGUNO && registros[IP] != -1)
+            Breakpoint();
     }
  
     if (error_actual != ERR_NINGUNO) {

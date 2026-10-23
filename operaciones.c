@@ -104,6 +104,30 @@ void guardarImagen(){
     fclose(vmi);
 }
 
+void Breakpoint(){
+    char eleccion;
+    breakpoint_enter = 0;
+    guardarImagen();
+
+    while (1){
+        scanf("%c", &eleccion);
+
+        if(eleccion == 'g'){
+            return;
+        }
+
+        if (eleccion == 'q'){
+            registros[IP] = -1;
+            return;
+        }
+
+        if(eleccion == '\n'){
+            breakpoint_enter = 1;
+            return;
+        }
+    }
+}
+
 // Devuele el valor del la parte del registro pedida, si se pide el ultimo byte por ejemplo devuelve 4 bytes pero solo maximo en los dos primeros(si no es ek registro completo) tiene datos, los demas son parte del signo
 int32_t pseudonimoOperando(int32_t valorOP) {
     uint8_t nroRegistroOpB = valorOP & 0x1F;       // Bits 0-4
@@ -991,7 +1015,8 @@ void RND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     
     if (valorA == 0xF){ //Faltan breakpoints
-        guardarImagen();
+        if (hay_vmi)
+         Breakpoint();
         return;
     }
 
