@@ -87,13 +87,9 @@ void guardarImagen(){
         return;
  
     FILE *vmi = fopen(nombre_vmi, "wb");
-
-    if (vmi == NULL){ // si vmi esta vacio
-        return;
-    }
  
     fwrite("VMI26", 1, 5, vmi);
-    fputc(2, vmi);                           
+    fputc(1, vmi);                           
     escribirBE(vmi, memoria_vm_kib, 2); // Escribo en big endian el tamaño de la memoria
  
     for (int i = 0; i < CANT_REG; i++)

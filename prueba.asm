@@ -63,6 +63,7 @@ suma:   push bp
         mov bp, sp
         mov eax, [bp+12]
         add eax, [bp+8]
+        SYS 15
         mov sp, bp
         pop bp
         ret
