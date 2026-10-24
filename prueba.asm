@@ -21,7 +21,6 @@ main:   ; leer x (decimal, 1 valor de 4 bytes) en [0]
         ldh ecx, 4
         ldl ecx, 1
         sys 0x2
-        sys 0
         stop
         
 
