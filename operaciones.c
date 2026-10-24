@@ -76,20 +76,22 @@ int lecturaEnMemoria( int32_t valorOp, int32_t cantBytes ){
         return valor;
     }
 }
-
 void escribirBE(FILE *f, uint32_t valor, int n){
     for (int i = n - 1; i >= 0; i--)
         fputc((valor >> (8 * i)) & 0xFF, f);
 }
-
 void guardarImagen(){
     if (!hay_vmi || nombre_vmi == NULL)
         return;
  
     FILE *vmi = fopen(nombre_vmi, "wb");
+
+    if (vmi == NULL){ // si vmi esta vacio
+        return;
+    }
  
     fwrite("VMI26", 1, 5, vmi);
-    fputc(1, vmi);                           
+    fputc(2, vmi);                           
     escribirBE(vmi, memoria_vm_kib, 2); // Escribo en big endian el tamaño de la memoria
  
     for (int i = 0; i < CANT_REG; i++)
@@ -99,11 +101,9 @@ void guardarImagen(){
         escribirBE(vmi, tabla_seg[i].base, 2); // escribo en dos bytes porque la tabla de segmentos tiene por posicion un 4 bytes
         escribirBE(vmi, tabla_seg[i].tam, 2);
     }
- 
     fwrite(RAM, 1, memoria_vm_kib * 1024, vmi); // misma manera que en el main
     fclose(vmi);
 }
-
 void Breakpoint(){
     char eleccion;
     breakpoint_enter = 0;
@@ -1016,9 +1016,9 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     
     if (valorA == 0xF){ //Faltan breakpoints
         if (hay_vmi)
-         Breakpoint();
-        return;
-    }
+            Breakpoint();
+            return;
+        }
 
     uint32_t dire_memoria = tabla_seg[ registros[EDX]>>16 ].base + ( registros[EDX] & 0x0000FFFF );
     uint16_t cant_valores = registros[ECX] & 0x00FF;
@@ -1113,6 +1113,39 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     }
     else if (valorA == 0){
         system("cls");
+    }
+    else if (valorA == 3){
+        if (registros[ECX] == -1)
+            // si el registro ecx es -1, entonces debo escribir la cantidad de caracteres desde la direccion de memoria dicha hasta el tamanio del segmento
+            cantbytes = tabla_seg[registros[EDX]>>16].tam - dire_memoria;// preguntar esta parte podria no escribir todo el segmento
+        else
+            cantbytes = registros[ECX];
+        // Debo manejar errores
+        char cadena[cantbytes];
+        char c;
+        for( int i = 0; i <= cantbytes-1; i++ ){
+            scanf("%c\n",c);
+            cadena[i]=c;
+        }
+        cadena[ cantbytes ] = 0x00;// Preguntar si debemos dejar al programador
+        int j = 0;
+        // parte de la escritura en memoria
+        for ( int i = dire_memoria; i < dire_memoria+cantbytes; i++ ){
+            RAM[i] =  cadena[j];
+            j++;
+        }      
+    }
+    else if ( valorA == 4 ){
+        // Hay que fijarse los errores que se pueden llegar a ocurrir
+        
+        while ( RAM[dire_memoria] != 0x00 && dire_memoria <= tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base ){
+            printf(" %c\n", RAM[dire_memoria]);
+            dire_memoria++;
+        }
+        if (dire_memoria >  tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base){
+            error_actual = ERR_FALLO_SEGMENTO;
+            return;
+        }
     }
 }
 
