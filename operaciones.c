@@ -1115,31 +1115,39 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         system("cls");
     }
     else if (valorA == 3){
-        if (registros[ECX] == -1)
-            // si el registro ecx es -1, entonces debo escribir la cantidad de caracteres desde la direccion de memoria dicha hasta el tamanio del segmento
-            cantbytes = tabla_seg[registros[EDX]>>16].tam - dire_memoria;// preguntar esta parte podria no escribir todo el segmento
-        else
-            cantbytes = registros[ECX];
-        // Debo manejar errores
-        char cadena[cantbytes];
-        char c;
-        for( int i = 0; i <= cantbytes-1; i++ ){
-            scanf("%c\n",c);
-            cadena[i]=c;
+        uint16_t seg = registros[EDX] >> 16;
+        uint32_t offset = registros[EDX] & 0xFFFF;
+        uint32_t i = 0;
+        int c;
+
+        if (seg >= TAM_SEG || offset >= tabla_seg[seg].tam){
+            error_actual = ERR_FALLO_SEGMENTO;
+            return;
         }
-        cadena[ cantbytes ] = 0x00;// Preguntar si debemos dejar al programador
-        int j = 0;
-        // parte de la escritura en memoria
-        for ( int i = dire_memoria; i < dire_memoria+cantbytes; i++ ){
-            RAM[i] =  cadena[j];
-            j++;
-        }      
+        printf("[Escribi]: ");
+        c = getchar();
+        while (c != '\n' && c != EOF){
+            if (registros[ECX] == -1 || i < registros[ECX]){
+                if (offset + i + 1 >= tabla_seg[seg].tam){   
+                    error_actual = ERR_FALLO_SEGMENTO;
+                    return;
+                }
+                RAM[tabla_seg[seg].base + offset + i] = c;
+                i++;
+            }
+            c = getchar();   
+        }
+        RAM[tabla_seg[seg].base + offset + i] = 0;
     }
     else if ( valorA == 4 ){
         // Hay que fijarse los errores que se pueden llegar a ocurrir
         
         while ( RAM[dire_memoria] != 0x00 && dire_memoria <= tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base ){
-            printf(" %c\n", RAM[dire_memoria]);
+            if (RAM[dire_memoria] != 0x0A){ // 0x0A valor en ascii de \n
+                printf(" %c", RAM[dire_memoria]);
+            }
+            else
+                printf("\n");
             dire_memoria++;
         }
         if (dire_memoria >  tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base){

@@ -1,100 +1,29 @@
-\\DATA 8                 ; [0] = x (leído), [4] = resultado
-\\STACK 256
-\\EXTRA 0
+\\DATA 64                 ; Data Segment de 64 bytes (ajustá la directiva a tu ensamblador)
 
-main:   ; leer x (decimal, 1 valor de 4 bytes) en [0]
-        mov eax, 0x01
-        mov edx, ds
-        ldh ecx, 4
-        ldl ecx, 1
-        sys 0x1
-        sys 15
-        push [0]
-        call f
-        add sp, 4
-        mov [4], eax
+        ; --- 1 leo un nombre de hasta 20 caracteres en DS+0 y lo imprimo
+main: MOV EDX, DS
+        SYS 15       ; EDX = direccion logica del inicio del Data Segment
+        MOV ECX, 20       ; maximo 20 caracteres (mas el '\0')
+        SYS 0x03          ; STRING READ: guarda lo que escribo en [EDX]
+        MOV EDX, DS
+        SYS 0x04          ; STRING WRITE: imprime desde [EDX] hasta el '\0'
 
-        ; mostrar el resultado
-        mov eax, 0x01
-        mov edx, ds
-        add edx, 4
-        ldh ecx, 4
-        ldl ecx, 1
-        sys 0x2
-        stop
-        
+        ; --- 2 limito a 3 caracteres: si escribo "Mundo" guarda "Mun"
+        MOV EDX, DS
+        ADD EDX, 30       ; ahora escribo en la celda 30 del Data Segment
+        MOV ECX, 3
+        SYS 0x03
+        MOV EDX, DS
+        ADD EDX, 30
+        SYS 0x04
 
-; f(x) = cubo(x) + (cuadrado(x) + doble(x))
-; parámetro: x en [bp+8]. Devuelve en EAX.
-f:      push bp
-        mov bp, sp
-        sub sp, 12              ; [bp-4]=cubo, [bp-8]=cuadrado, [bp-12]=doble
+        ; --- 3 sin limite (ECX = -1): guarda toda la linea que escriba
+        MOV EDX, DS
+        ADD EDX, 40
+        MOV ECX, -1
+        SYS 0x03
+        MOV EDX, DS
+        ADD EDX, 40
+        SYS 0x04
 
-        push [bp+8]
-        call cubo
-        add sp, 4
-        mov [bp-4], eax
-
-        push [bp+8]
-        call cuadrado
-        add sp, 4
-        mov [bp-8], eax
-
-        push [bp+8]
-        call doble
-        add sp, 4
-        mov [bp-12], eax
-
-        push [bp-8]             ; a = cuadrado
-        push [bp-12]            ; b = doble
-        call suma
-        add sp, 8               ; eax = cuadrado + doble
-
-        push [bp-4]             ; a = cubo
-        push eax                ; b = (cuadrado + doble)
-        call suma
-        add sp, 8               ; eax = resultado final
-
-        mov sp, bp              ; libero los locales
-        pop bp
-        ret
-
-; suma(a, b): a en [bp+12], b en [bp+8]
-suma:   push bp
-        mov bp, sp
-        mov eax, [bp+12]
-        add eax, [bp+8]
-        mov sp, bp
-        pop bp
-        ret
-
-; doble(x) = suma(x, x)
-doble:  push bp
-        mov bp, sp
-        push [bp+8]
-        push [bp+8]
-        call suma
-        add sp, 8
-        mov sp, bp
-        pop bp
-        ret
-
-; cuadrado(x) = x * x
-cuadrado: push bp
-          mov bp, sp
-          mov eax, [bp+8]
-          mul eax, [bp+8]
-          mov sp, bp
-          pop bp
-          ret
-
-; cubo(x) = cuadrado(x) * x
-cubo:   push bp
-        mov bp, sp
-        push [bp+8]
-        call cuadrado
-        add sp, 4               ; eax = x^2
-        mul eax, [bp+8]         ; eax = x^3
-        mov sp, bp
-        pop bp
-        ret
+        STOP

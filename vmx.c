@@ -220,48 +220,6 @@ int cargoImagen(argumentos_vm *args){
     args->memoria_kib = memoria_kib;    // M sale de la imagen (se ignora m=)
     return 0;
 }
-// ELIMINAR AL TERMINAR
-void imprimirDebug(uint32_t tam_memoria){
-    if (tam_memoria > sizeof(RAM))
-        tam_memoria = sizeof(RAM);
- 
-    printf("\n===== TABLA DE SEGMENTOS =====\n");
-    printf("idx  base  tam   fin\n");
-    for (int i = 0; i < TAM_SEG; i++){
-        printf(" %d   %04X  %04X  ", i, tabla_seg[i].base, tabla_seg[i].tam);
-        if (tabla_seg[i].tam != 0)
-            printf("%04X", tabla_seg[i].base + tabla_seg[i].tam - 1);
-        printf("\n");
-    }
- 
-    printf("PS=%08X KS=%08X CS=%08X DS=%08X ES=%08X SS=%08X\n", registros[PS], registros[KS], registros[CS], registros[DS], registros[ES], registros[SS]);
-    printf("IP=%08X SP=%08X BP=%08X\n", registros[IP], registros[SP], registros[BP]);
- 
-    printf("\n===== RAM (%u bytes) =====\n", tam_memoria);
-    int repetida = 0;
-    for (uint32_t dir = 0; dir < tam_memoria; dir += 16){
-        if (dir > 0 && memcmp(&RAM[dir], &RAM[dir - 16], 16) == 0){
-            if (!repetida)
-                printf("*\n");
-            repetida = 1;
-            continue;
-        }
-        repetida = 0;
- 
-        printf("%04X: ", dir);
-        for (int i = 0; i < 16; i++)
-            printf("%02X ", RAM[dir + i]);
-        printf(" |");
-        for (int i = 0; i < 16; i++){
-            unsigned char c = RAM[dir + i];
-            if (c < 32 || c > 126)
-                c = '.';
-            printf("%c", c);
-        }
-        printf("|\n");
-    }
-    printf("%04X\n\n", tam_memoria);
-}
  
 int main(int argc, char *argv[]) {
     srand((unsigned int) time(NULL)); // Para la operacion RND
@@ -390,8 +348,6 @@ int main(int argc, char *argv[]) {
     if(args.modo_disassembler){
         desensamblar();
     }
-
-    imprimirDebug(args.memoria_kib * 1024);
 
     while(error_actual == ERR_NINGUNO && registros[IP] != -1 && IPdirfisica() < tabla_seg[registros[IP] >> 16].base + tabla_seg[registros[IP] >> 16].tam){
         buscoOperacion();
