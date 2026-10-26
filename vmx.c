@@ -299,7 +299,9 @@ int main(int argc, char *argv[]) {
                 RAM[pos_memoria] = 0; 
                 pos_memoria++;
             }
-            
+
+            uint32_t dir_array = registros[PS] | pos_memoria; // direccion logica del arreglo de punteros (argv)
+
             for (int pos = 0; pos < indice_dir; pos++) { // Argv de la maquina
                 uint32_t dir_actual = direcciones[pos];
  
@@ -315,7 +317,7 @@ int main(int argc, char *argv[]) {
                 RAM[pos_memoria] = dir_actual & 0xFF;                 
                 pos_memoria++;
             }
-            PUSH(2, 0, direcciones[0], 0);
+            PUSH(2, 0, dir_array, 0);
             PUSH(2, 0, args.cant_params, 0);
             PUSH(2, 0, -1, 0);
         }else{
