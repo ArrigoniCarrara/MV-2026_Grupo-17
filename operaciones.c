@@ -170,24 +170,24 @@ void MOV( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     }
     else{
         // no nos atajamos si nos viene un opA inmediato.
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         uint8_t pseudonimo = valorA >> 5;// Corro los 5 bits del nro de registro
         pseudonimo = pseudonimo & 0x3;// Me quedo solo con los dos bits menos significativos
         if ( pseudonimo == 0x01 ){
             registros[nroRegistroA] = registros[nroRegistroA] & 0xFFFFFF00;
-            registros[nroRegistroA] |= (valor & 0x000000FF);
+            registros[nroRegistroA] = registros[nroRegistroA] | (valor & 0x000000FF);
         }
         else
             if (pseudonimo == 0x02){
                 registros[nroRegistroA] &= 0xFFFF00FF;
                 int32_t aux = valor & 0x000000FF;
                 aux = aux << 8;
-                registros[nroRegistroA] |= aux;
+                registros[nroRegistroA] = registros[nroRegistroA] | aux;
             }
         else
             if (pseudonimo == 0x3){
                 registros[nroRegistroA] &= 0xFFFF0000;
-                registros[nroRegistroA] |= (valor & 0x0000FFFF);
+                registros[nroRegistroA] = registros[nroRegistroA] | (valor & 0x0000FFFF);
             }
         else
             registros[nroRegistroA] = valor; 
