@@ -954,7 +954,7 @@ void LDL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     else{
         uint8_t nroRegistroA = valorA & 0x0000001F;
         valorGuardadoA = registros[nroRegistroA];
-        registros[nroRegistroA] = valorGuardadoB | valorGuardadoA;
+        registros[nroRegistroA] = (registros[nroRegistroA] & 0xFFFF0000) | valorGuardadoB;
     }
     
 }
@@ -983,7 +983,7 @@ void LDH(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     else{
         uint8_t nroRegistroA = valorA & 0x0000001F;
         valorGuardadoA = registros[nroRegistroA];
-        registros[nroRegistroA] = (valorGuardadoB << 16) | valorGuardadoA;
+        registros[nroRegistroA] = (registros[nroRegistroA] & 0x0000FFFF) | ((uint32_t)valorGuardadoB << 16);
     }
     
 }
@@ -1014,7 +1014,7 @@ void RND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     
-    if (valorA == 0xF){ //Faltan breakpoints
+     if (valorA == 0xF){ //Faltan breakpoints
         if (hay_vmi)
             Breakpoint();
             return;
@@ -1115,25 +1115,29 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         system("cls");
     }
     else if (valorA == 3){
-        if (registros[ECX] == -1)
-            // si el registro ecx es -1, entonces debo escribir la cantidad de caracteres desde la direccion de memoria dicha hasta el tamanio del segmento
-            cantbytes = tabla_seg[registros[EDX]>>16].tam - dire_memoria;// preguntar esta parte podria no escribir todo el segmento
-        else
-            cantbytes = registros[ECX];
-        // Debo manejar errores
-        char cadena[cantbytes];
-        char c;
-        for( int i = 0; i <= cantbytes-1; i++ ){
-            scanf("%c\n",c);
-            cadena[i]=c;
+        uint16_t seg = registros[EDX] >> 16;
+        uint32_t offset = registros[EDX] & 0xFFFF;
+        uint32_t i = 0;
+        int c;
+
+        if (seg >= TAM_SEG || offset >= tabla_seg[seg].tam){
+            error_actual = ERR_FALLO_SEGMENTO;
+            return;
         }
-        cadena[ cantbytes ] = 0x00;// Preguntar si debemos dejar al programador
-        int j = 0;
-        // parte de la escritura en memoria
-        for ( int i = dire_memoria; i < dire_memoria+cantbytes; i++ ){
-            RAM[i] =  cadena[j];
-            j++;
-        }      
+        printf("[Escribi]: ");
+        c = getchar();
+        while (c != '\n' && c != EOF){
+            if (registros[ECX] == -1 || i < registros[ECX]){
+                if (offset + i + 1 >= tabla_seg[seg].tam){   
+                    error_actual = ERR_FALLO_SEGMENTO;
+                    return;
+                }
+                RAM[tabla_seg[seg].base + offset + i] = c;
+                i++;
+            }
+            c = getchar();   
+        }
+        RAM[tabla_seg[seg].base + offset + i] = 0;
     }
     else if ( valorA == 4 ){
         // Hay que fijarse los errores que se pueden llegar a ocurrir
@@ -1145,7 +1149,6 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             else
                 printf("\n");
             dire_memoria++;
-
         }
         if (dire_memoria >  tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base){
             error_actual = ERR_FALLO_SEGMENTO;
