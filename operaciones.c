@@ -175,19 +175,19 @@ void MOV( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
         pseudonimo = pseudonimo & 0x03;// Me quedo solo con los dos bits menos significativos
         if ( pseudonimo == 0x01 ){
             registros[nroRegistroA] = registros[nroRegistroA] & 0xFFFFFF00;
-            registros[nroRegistroA] |= (valor & 0x000000FF);
+            registros[nroRegistroA] = registros[nroRegistroA] | (valor & 0x000000FF);
         }
         else
             if (pseudonimo == 0x02){
                 registros[nroRegistroA] &= 0xFFFF00FF;
                 int32_t aux = valor & 0x000000FF;
                 aux = aux << 8;
-                registros[nroRegistroA] |= aux;
+                registros[nroRegistroA] = registros[nroRegistroA] | aux;
             }
         else
             if (pseudonimo == 0x3){
                 registros[nroRegistroA] &= 0xFFFF0000;
-                registros[nroRegistroA] |= (valor & 0x0000FFFF);
+                registros[nroRegistroA] = registros[nroRegistroA] | (valor & 0x0000FFFF);
             }
         else
             registros[nroRegistroA] = valor; 
@@ -1124,7 +1124,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         char cadena[cantbytes];
         char c;
         for( int i = 0; i <= cantbytes-1; i++ ){
-            scanf("%c\n",&c);
+            scanf("%c\n",c);
             cadena[i]=c;
         }
         cadena[ cantbytes ] = 0x00;// Preguntar si debemos dejar al programador
@@ -1139,7 +1139,11 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         // Hay que fijarse los errores que se pueden llegar a ocurrir
         
         while ( RAM[dire_memoria] != 0x00 && dire_memoria <= tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base ){
-            printf(" %c\n", RAM[dire_memoria]);
+            if (RAM[dire_memoria] != 0x0A){ // 0x0A valor en ascii de \n
+                printf(" %c", RAM[dire_memoria]);
+            }
+            else
+                printf("\n");
             dire_memoria++;
 
         }
