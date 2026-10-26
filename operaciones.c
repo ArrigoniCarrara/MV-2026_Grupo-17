@@ -170,9 +170,9 @@ void MOV( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     }
     else{
         // no nos atajamos si nos viene un opA inmediato.
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         uint8_t pseudonimo = valorA >> 5;// Corro los 5 bits del nro de registro
-        pseudonimo = pseudonimo & 0x3;// Me quedo solo con los dos bits menos significativos
+        pseudonimo = pseudonimo & 0x03;// Me quedo solo con los dos bits menos significativos
         if ( pseudonimo == 0x01 ){
             registros[nroRegistroA] = registros[nroRegistroA] & 0xFFFFFF00;
             registros[nroRegistroA] |= (valor & 0x000000FF);
@@ -224,7 +224,7 @@ void ADD( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
         // no nos atajamos si nos viene un opA inmediato.
         valorGuardadoA = pseudonimoOperando(valorA);
         int32_t resultado;
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
         if ( pseudonimo == 0x01 ){
             resultado = (registros[nroRegistroA] & 0x000000FF) + valorGuardadoB;
@@ -285,7 +285,7 @@ void SUB( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
         // no nos atajamos si nos viene un opA inmediato.
         valorGuardadoA = pseudonimoOperando(valorA);
         int32_t resultado;
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
         if ( pseudonimo == 0x01 ){
             resultado = (registros[nroRegistroA] & 0x000000FF) - valorGuardadoB;
@@ -347,7 +347,7 @@ void MUL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         // no nos atajamos si nos viene un opA inmediato.
         valorGuardadoA = pseudonimoOperando(valorA);
         int32_t resultado;
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
         if ( pseudonimo == 0x01 ){
             resultado = (registros[nroRegistroA] & 0x000000FF) * valorGuardadoB;
@@ -413,7 +413,7 @@ void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
             valorGuardadoA = pseudonimoOperando(valorA);
             // no nos atajamos si nos viene un opA inmediato.
             int32_t resultado;
-            uint8_t nroRegistroA = valorA & 0x000000FF;
+            uint8_t nroRegistroA = valorA & 0x0000001F;
             uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
             if ( pseudonimo == 0x01 ){
                 resultado = (registros[nroRegistroA] & 0x000000FF) / valorGuardadoB;
@@ -509,7 +509,7 @@ void AND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         // no nos atajamos si nos viene un opA inmediato.
         valorGuardadoA = pseudonimoOperando(valorA);
         int32_t resultado;
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
         if ( pseudonimo == 0x01 ){
             resultado = (registros[nroRegistroA] & 0x000000FF) & valorGuardadoB;
@@ -565,7 +565,7 @@ void OR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         // no nos atajamos si nos viene un opA inmediato.
         valorGuardadoA = pseudonimoOperando(valorA);
         int32_t resultado;
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
         if ( pseudonimo == 0x01 ){
             resultado = (registros[nroRegistroA] & 0x000000FF) | valorGuardadoB;
@@ -619,7 +619,7 @@ void XOR( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
         // no nos atajamos si nos viene un opA inmediato.
         valorGuardadoA = pseudonimoOperando(valorA);
         int32_t resultado;
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
         if ( pseudonimo == 0x01 ){
             resultado = (registros[nroRegistroA] & 0x000000FF) ^ valorGuardadoB;
@@ -665,15 +665,15 @@ void SWAP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
         valorGuardadoA = lecturaEnMemoria(valorA, cantBytes );
     }
     else
-        valorGuardadoA = pseudonimoOperando( valorGuardadoA );
+        valorGuardadoA = pseudonimoOperando( valorA );
     registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
     if(tipoOpA == 3){
         cantBytes = ( valorA >> 5 ) & 0x00000007;
         escrituraEnMemoria(valorGuardadoB, cantBytes, valorA);
     }
     else 
-        if (tipoOpA == 2){
-            uint8_t nroRegistroA = valorA & 0x000000FF;
+        if (tipoOpA == 1){
+            uint8_t nroRegistroA = valorA & 0x0000001F;
             uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro 
             if ( pseudonimo == 0x01 ){
                 registros[nroRegistroA] &= 0xFFFFFF00;
@@ -693,11 +693,11 @@ void SWAP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
                 registros[nroRegistroA] = valorGuardadoB;
         }
         if(tipoOpB == 3){
-            cantBytes = (valorB >> 7) & 0x00000007;
+            cantBytes = (valorB >> 5) & 0x00000007;
             escrituraEnMemoria(valorGuardadoA, cantBytes, valorB);
         }
         else{
-            uint8_t nroRegistroB = valorB & 0x000000FF;
+            uint8_t nroRegistroB = valorB & 0x0000001F;
             uint8_t pseudonimo = (valorB >> 5) & 0x03;// Corro los 5 bits del nro de registro 
             if ( pseudonimo == 0x01 ){
                 registros[nroRegistroB] &= 0xFFFFFF00;
@@ -749,7 +749,7 @@ void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         // no nos atajamos si nos viene un opA inmediato.
         valorGuardadoA = pseudonimoOperando(valorA);
         int32_t resultado;
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
         if ( pseudonimo == 0x01 ){
             resultado = (registros[nroRegistroA] & 0x000000FF) << valorGuardadoB;
@@ -813,7 +813,7 @@ void SHR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         // no nos atajamos si nos viene un opA inmediato.
         valorGuardadoA = pseudonimoOperando(valorA);
         uint32_t resultado;
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
         if ( pseudonimo == 0x01 ){// AL, BL, CL, DL, EL, FL
             resultado = (registros[nroRegistroA] & 0x000000FF) >> valorGuardadoB;
@@ -883,7 +883,7 @@ void SAR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         // no nos atajamos si nos viene un opA inmediato.
         valorGuardadoA = pseudonimoOperando(valorA);
         int32_t resultado;
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
         if ( pseudonimo == 0x01 ){
             resultado = (registros[nroRegistroA] & 0x000000FF) >> valorGuardadoB;
@@ -952,7 +952,7 @@ void LDL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         escrituraEnMemoria( valorGuardadoB | valorGuardadoA, 4,valorA );  
     }
     else{
-        uint8_t nroRegistroA = valorA & 0x000000FF;
+        uint8_t nroRegistroA = valorA & 0x0000001F;
         valorGuardadoA = registros[nroRegistroA];
         registros[nroRegistroA] = valorGuardadoB | valorGuardadoA;
     }
@@ -1124,7 +1124,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         char cadena[cantbytes];
         char c;
         for( int i = 0; i <= cantbytes-1; i++ ){
-            scanf("%c\n",c);
+            scanf("%c\n",&c);
             cadena[i]=c;
         }
         cadena[ cantbytes ] = 0x00;// Preguntar si debemos dejar al programador
@@ -1141,6 +1141,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         while ( RAM[dire_memoria] != 0x00 && dire_memoria <= tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base ){
             printf(" %c\n", RAM[dire_memoria]);
             dire_memoria++;
+
         }
         if (dire_memoria >  tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base){
             error_actual = ERR_FALLO_SEGMENTO;
