@@ -381,5 +381,5 @@ int main(int argc, char *argv[]) {
         registros[IP] = -1; // dejamos IP consistente con el comportamiento de STOP
     }
  
-    return 1;
+    return 0;
 }
