@@ -421,35 +421,32 @@ void DIV (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
         }
         else{
             valorGuardadoA = pseudonimoOperando(valorA);
-            // no nos atajamos si nos viene un opA inmediato.
             int32_t resultado;
             uint8_t nroRegistroA = valorA & 0x0000001F;
-            uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
+            uint8_t pseudonimo = (valorA >> 5) & 0x03;
             if ( pseudonimo == 0x01 ){
-                resultado = (registros[nroRegistroA] & 0x000000FF) / valorGuardadoB;
+                resultado = valorGuardadoA / valorGuardadoB;
                 registros[nroRegistroA] &= 0xFFFFFF00; 
                 registros[nroRegistroA] |= (resultado & 0x000000FF);
             }
             else
                 if (pseudonimo == 0x02){
-                    resultado = (((registros[nroRegistroA] >> 8) / valorGuardadoB) & 0xFF) << 8;
+                    resultado = (( valorGuardadoA / valorGuardadoB ) & 0xFF) << 8;
                     registros[nroRegistroA] = (registros[nroRegistroA] & 0xFFFF00FF) | resultado;
                 }
             else
                 if (pseudonimo == 0x3){
-                    resultado = ( registros[nroRegistroA] & 0x0000FFFF ) / valorGuardadoB; 
+                    resultado = valorGuardadoA / valorGuardadoB;
                     registros[nroRegistroA] &= 0xFFFF0000;
                     registros[nroRegistroA] |= (resultado & 0x0000FFFF);
                 }
             else
-                registros[nroRegistroA] /= valorGuardadoB; 
+                registros[nroRegistroA] = valorGuardadoA / valorGuardadoB;
             }
     }
-        registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
         registros[AC] = valorGuardadoA % valorGuardadoB;
         int32_t resultado = valorGuardadoA / valorGuardadoB;
-        // La operacion DIV no modifica C ni V
-        registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+        registros[CC] &= 0x0FFFFFFF;
         if ( resultado == 0 )
             registros[CC] |= 0x40000000;
         if ( resultado < 0 )
