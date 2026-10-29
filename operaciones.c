@@ -21,17 +21,21 @@ void modificoIP(int dirfisica){
 }
 
 int buscaDireccionFisica( int32_t valorOp, int32_t cantBytes ){
+    //Calculos previos para la direccion de la direccion fisica
     int direFisica = 0;
     uint8_t codReg = valorOp & 0x00001F;
-    uint16_t seg = registros[codReg] >> 16; 
-    direFisica = tabla_seg[seg].base;
-    int offset = (registros[codReg] & 0x0000FFFF) + (int16_t)(valorOp >> 8);
-    direFisica += offset;
-
+    uint16_t seg = registros[codReg] >> 16;
+    int offset = (registros[codReg] & 0x0000FFFF) + (int16_t)(valorOp >> 8); 
     if ( seg >= TAM_SEG || (tabla_seg[seg].base == 0xFFFF && tabla_seg[seg].tam == 0xFFFF) || offset < 0 || offset + cantBytes > tabla_seg[seg].tam ){
         error_actual = ERR_FALLO_SEGMENTO;
         return -1;
     }
+
+    // Obtengo la direccion fisica 
+    direFisica = tabla_seg[seg].base;
+    direFisica += offset;
+
+
     registros[LAR] = (seg << 16) | ((uint32_t)offset & 0xFFFF);
     registros[MAR] = ((uint32_t)cantBytes << 16) | (uint16_t)direFisica;
 
@@ -1041,6 +1045,10 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             return;
         }
 
+     if (valorA == 0)
+        system("cls");
+    
+
     uint32_t dire_memoria = tabla_seg[ registros[EDX]>>16 ].base + ( registros[EDX] & 0x0000FFFF );
     uint16_t cant_valores = registros[ECX] & 0x00FF;
     uint16_t cantbytes = registros[ECX] >> 16;
@@ -1131,9 +1139,6 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
              return;
 
        }
-    }
-    else if (valorA == 0){
-        system("cls");
     }
     else if (valorA == 3){
         uint16_t seg = registros[EDX] >> 16;
