@@ -798,72 +798,87 @@ void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 }
 
 void SHR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    int32_t valorGuardadoB,valorGuardadoA;
-    int8_t cantBytes;
+    int32_t valorGuardadoB, valorGuardadoA;
+    int8_t cantBytes = 4;
+    uint32_t mascara = 0xFFFFFFFF;   // ancho del operando A
+    uint8_t nroRegistroA = 0;
+    uint8_t pseudonimo = 0;
+
+    // --- operando B: cantidad de bits a desplazar ---
     if ( tipoOpB == 0x03 ){
         cantBytes = ( valorB >> 5 ) & 0x00000007;
-        valorGuardadoB = lecturaEnMemoria( valorB,cantBytes);
+        valorGuardadoB = lecturaEnMemoria( valorB, cantBytes );
     }
     else
-        if( tipoOpB == 0x01 ){
-            valorGuardadoB = pseudonimoOperando(valorB);
-    }
-    else
-        valorGuardadoB = valorB;
+        if( tipoOpB == 0x01 )
+            valorGuardadoB = pseudonimoOperando( valorB );
+        else
+            valorGuardadoB = valorB;
+    if ( error_actual != ERR_NINGUNO )
+        return;
+
+    // --- operando A: valor actual y ancho ---
     if ( tipoOpA == 0x03 ){
         cantBytes = ( valorA >> 5 ) & 0x00000007;
         valorGuardadoA = lecturaEnMemoria( valorA, cantBytes );
-        uint32_t resultado = (uint32_t)valorGuardadoA >> valorGuardadoB;
-        escrituraEnMemoria( resultado, cantBytes, valorA );
+        if ( cantBytes < 4 )
+            mascara = (1u << (cantBytes * 8)) - 1;
     }
     else{
         // no nos atajamos si nos viene un opA inmediato.
-        valorGuardadoA = pseudonimoOperando(valorA);
-        uint32_t resultado;
-        uint8_t nroRegistroA = valorA & 0x0000001F;
-        uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
-        if ( pseudonimo == 0x01 ){
-            resultado = ((uint32_t)valorGuardadoA & 0xFF) >> valorGuardadoB;
-            registros[nroRegistroA] &= 0xFFFFFF00; 
+        valorGuardadoA = pseudonimoOperando( valorA );
+        nroRegistroA = valorA & 0x0000001F;
+        pseudonimo = (valorA >> 5) & 0x03;
+        if ( pseudonimo == 0x01 || pseudonimo == 0x02 )      // AL, AH
+            mascara = 0xFF;
+        else
+            if ( pseudonimo == 0x03 )                        // AX
+                mascara = 0xFFFF;
+    }
+    if ( error_actual != ERR_NINGUNO )
+        return;
+
+    // --- corrimiento logico dentro del ancho del operando ---
+    uint32_t cant = (uint32_t) valorGuardadoB;               // un corrimiento negativo o >= 32 deja todo en cero
+    uint32_t a = (uint32_t) valorGuardadoA & mascara;
+    uint32_t resultado = ( cant >= 32 ) ? 0 : ( a >> cant );
+
+    // --- escritura del resultado ---
+    if ( tipoOpA == 0x03 )
+        escrituraEnMemoria( resultado, cantBytes, valorA );
+    else
+        if ( pseudonimo == 0x01 ){                           // AL, BL, CL, DL, EL, FL
+            registros[nroRegistroA] &= 0xFFFFFF00;
             registros[nroRegistroA] |= (resultado & 0x000000FF);
         }
         else
-            if (pseudonimo == 0x02){
-                resultado = ((((uint32_t)valorGuardadoA & 0xFF) >> valorGuardadoB) & 0xFF) << 8;  
-                registros[nroRegistroA] = (registros[nroRegistroA] & 0xFFFF00FF) | resultado;
+            if ( pseudonimo == 0x02 ){                       // AH, BH, CH, DH, EH, FH
+                registros[nroRegistroA] &= 0xFFFF00FF;
+                registros[nroRegistroA] |= (resultado & 0x000000FF) << 8;
             }
-        else
-            if (pseudonimo == 0x3){
-                resultado = ((uint32_t)valorGuardadoA & 0xFFFF) >> valorGuardadoB;
-                registros[nroRegistroA] &= 0xFFFF0000;
-                registros[nroRegistroA] |= (resultado & 0x0000FFFF);
-            }
-        else
-            registros[nroRegistroA] = (uint32_t)valorGuardadoA >> valorGuardadoB;
-    }
+            else
+                if ( pseudonimo == 0x03 ){                   // AX, BX, CX, DX, EX, FX
+                    registros[nroRegistroA] &= 0xFFFF0000;
+                    registros[nroRegistroA] |= (resultado & 0x0000FFFF);
+                }
+                else
+                    registros[nroRegistroA] = resultado;
 
-    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+    // --- CC: N y Z sobre el resultado dentro del ancho; C si salio algun bit en 1 ---
+    registros[CC] &= 0x0FFFFFFF;
 
-    int32_t resultado = (uint32_t)valorGuardadoA >> valorGuardadoB;
+    if ( resultado == 0 )
+        registros[CC] |= 0x40000000;
 
-    if ( resultado == 0 ) // 
-        registros[CC] |= 0x40000000; // XX XX XX XX 
-
-    if ( resultado < 0 )
+    if ( resultado & (mascara ^ (mascara >> 1)) )            // bit mas significativo del ancho del operando
         registros[CC] |= 0x80000000;
 
-    uint32_t a    = (uint32_t)valorGuardadoA;
-    uint32_t cant = (uint32_t)valorGuardadoB;
-
     int c;
-    if (cant >= 32)
-        c = (a != 0);
-    else {
-        uint64_t wide = (uint64_t)a << 32;   // 
-        wide >>= cant;                       // 
-        c = ((uint32_t)wide != 0);           // 
-    }
-    if (c)
+    if ( cant >= 32 )
+        c = ( a != 0 );
+    else
+        c = ( (uint32_t)(((uint64_t)a << 32) >> cant) != 0 );  // los 'cant' bits menos significativos que se perdieron
+    if ( c )
         registros[CC] |= 0x20000000;
 }
 

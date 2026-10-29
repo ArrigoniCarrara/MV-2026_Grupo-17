@@ -1,55 +1,37 @@
-; TEST 22 - Accesos b[] w[] l[] [] a memoria: lecturas con signo, escrituras truncadas, operaciones con destino en memoria
-\\DATA 64
-main: MOV l[8], 0
- MOV EAX, 0
- LDH EAX, 0x1122
- LDL EAX, 0x3344
- MOV l[0], EAX
- MOV EBX, 0
- LDH EBX, 0x8899
- LDL EBX, 0xAABB
- MOV l[4], EBX
+; TEST 25 - SHR (corrimiento logico) en 8, 16 y 32 bits, con cantidad 0, mayor o igual al ancho, y vecinos intactos
+\\DATA 32
+main: MOV EAX, 0
+ LDH EAX, 0xF000
+ SHR EAX, 4
  SYS 0x0F               ; CP1
- MOV ECX, b[4]
- MOV EDX, b[0]
- MOV EEX, w[4]
- MOV EFX, w[2]
+ MOV EAX, 0
+ LDH EAX, 0xF000
+ SHR EAX, 0
  SYS 0x0F               ; CP2
- MOV EAX, l[1]
- MOV EBX, [5]
+ SHR EAX, 40
  SYS 0x0F               ; CP3
- MOV b[0], 0x7F
- MOV w[1], -2
- MOV l[9], -3
- MOV b[13], AH
- MOV w[14], AX
+ MOV EBX, 0
+ LDL EBX, 0x00F0
+ SHR BL, 1
  SYS 0x0F               ; CP4
- ADD b[0], -1
- SUB w[1], 1
- ADD l[9], 3
+ SHR BL, 3
  SYS 0x0F               ; CP5
- MUL b[13], -1
- DIV w[14], 4
+ SHR BL, 8
  SYS 0x0F               ; CP6
- MOV b[4], 0x21
- SHL b[4], 1
+ MOV b[0], -2
+ SHR b[0], 1
+ MOV ECX, b[0]
  SYS 0x0F               ; CP7
- NOT b[8]
+ MOV l[4], -2
+ SHR l[4], 31
+ MOV EDX, l[4]
  SYS 0x0F               ; CP8
- OR b[10], 0x55
+ MOV w[8], 0x7FFF
+ SHR w[8], 16
+ MOV EEX, w[8]
  SYS 0x0F               ; CP9
- SAR w[1], 1
+ MOV l[12], -1
+ SHR w[12], 4
+ MOV EFX, l[12]
  SYS 0x0F               ; CP10
- SHR w[14], 4
- SYS 0x0F               ; CP11
- ADD w[2], AX
- SUB b[13], AL
- SYS 0x0F               ; CP12
- MOV EDX, DS
- ADD EDX, 16
- MOV l[EDX], EAX
- MOV BL, b[EDX+2]
- MOV BH, b[EDX]
- MOV BX, w[EDX+1]
- SYS 0x0F               ; CP13
  STOP
