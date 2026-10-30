@@ -137,15 +137,15 @@ void Breakpoint(){
 
 // Devuele el valor del la parte del registro pedida, si se pide el ultimo byte por ejemplo devuelve 4 bytes pero solo maximo en los dos primeros(si no es ek registro completo) tiene datos, los demas son parte del signo
 int32_t pseudonimoOperando(int32_t valorOP) {
-    uint8_t nroRegistroOpB = valorOP & 0x1F;       // Bits 0-4
-    uint8_t pseudonimo = (valorOP >> 5) & 0x03;    // Bits 5-6
+    uint8_t nroRegistroOpB = valorOP & 0x1F;    
+    uint8_t pseudonimo = (valorOP >> 5) & 0x03; 
     int32_t valor = registros[nroRegistroOpB];
     switch (pseudonimo) {
         case 0x01: // Es el caso de que solo agarro el byte menos significativo del registro
             return (int8_t)(valor & 0xFF);
             
         case 0x02: // Toma el segundo byte menos significativo del registro
-            return (int8_t)((valor >> 8) & 0xFF); // Corregido: >> 8 para un byte
+            return (int8_t)((valor >> 8) & 0xFF); 
             
         case 0x03: // Toma los dos bytes mas significativo
             return (int16_t)(valor & 0xFFFF);
@@ -885,7 +885,6 @@ void SHR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     if ( c )
         registros[CC] |= 0x20000000;
 }
-
 void SAR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int32_t valorGuardadoB,valorGuardadoA;
     int8_t cantBytes;
@@ -955,7 +954,6 @@ void SAR(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     if (c)
         registros[CC] |= 0x20000000;
 }
-
 void LDL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valorGuardadoB,valorGuardadoA;
     int8_t cantBytes;
@@ -1013,48 +1011,88 @@ void LDH(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     
 }
 
+uint64_t aleatorio60(){
+    uint64_t r = 0;
+    for ( int i = 0; i < 4; i++ )
+        r = ( r << 15 ) | (uint64_t)( rand() & 0x7FFF );
+    return r;
+}
+
+
 void RND(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
-    int valor;    
+    int32_t valor;
     int8_t cantBytes;
+
+    
     if (  tipoOpB == 0x03 ){
         cantBytes = ( valorB >> 5 ) & 0x00000007;
-        valor = lecturaEnMemoria( valorB,cantBytes );
+        valor = lecturaEnMemoria( valorB, cantBytes );
     }
     else
-        if( tipoOpB == 0x01 ){
-            uint8_t nroRegistroOpB = valorB & 0x0000001F;            
-            valor = registros[nroRegistroOpB];
-        }
-        else  
+        if( tipoOpB == 0x01 )
+            valor = pseudonimoOperando( valorB );    
+        else
             valor = valorB;
-    uint32_t num_aleatorio =  rand() % (valor + 1) ; // BUSCAR UNA FUNCION RANDOM QUE FUNCIONE
-    if( tipoOpA == 0x03 ){
-        escrituraEnMemoria(num_aleatorio, 4, valorA);
-    }else{
-        uint8_t nroRegistroA = valorA & 0x0000001F;
-        registros[nroRegistroA] = num_aleatorio;
-    }
+    if ( error_actual != ERR_NINGUNO )
+        return;
 
+    int64_t limite = valor;                                       
+    uint64_t rango = (uint64_t)( limite < 0 ? -limite : limite ) + 1;
+    int64_t aleatorio = (int64_t)( aleatorio60() % rango );
+    if ( limite < 0 )
+        aleatorio = -aleatorio;
+    int32_t resultado = (int32_t)aleatorio;
+
+    
+    if( tipoOpA == 0x03 ){
+        cantBytes = ( valorA >> 5 ) & 0x00000007;
+        escrituraEnMemoria( resultado, cantBytes, valorA );
+    }
+    else{
+        uint8_t nroRegistroA = valorA & 0x0000001F;
+        uint8_t pseudonimo = ( valorA >> 5 ) & 0x03;
+        if ( pseudonimo == 0x01 ){                                // AL, BL, ...
+            registros[nroRegistroA] &= 0xFFFFFF00;
+            registros[nroRegistroA] |= ( (uint32_t)resultado & 0x000000FF );
+        }
+        else
+            if ( pseudonimo == 0x02 ){                            // AH, BH, ...
+                registros[nroRegistroA] &= 0xFFFF00FF;
+                registros[nroRegistroA] |= ( (uint32_t)resultado & 0x000000FF ) << 8;
+            }
+            else
+                if ( pseudonimo == 0x03 ){                        // AX, BX, ...
+                    registros[nroRegistroA] &= 0xFFFF0000;
+                    registros[nroRegistroA] |= ( (uint32_t)resultado & 0x0000FFFF );
+                }
+                else
+                    registros[nroRegistroA] = (uint32_t)resultado;
+    }
 }
 
 void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     
-     if (valorA == 0xF){ //Faltan breakpoints
+     if (valorA == 0xF){ 
         if (hay_vmi)
             Breakpoint();
             return;
         }
 
-     if (valorA == 0)
+     if (valorA == 0){
         system("cls");
-    
+     }
+    uint16_t seg = registros[EDX] >> 16;
+    uint32_t offset = registros[EDX] & 0x0000FFFF;
+    if ( seg >= TAM_SEG || ( tabla_seg[seg].base == -1 && tabla_seg[seg].tam == -1 ) || offset >= tabla_seg[seg].tam ){
+        error_actual = ERR_FALLO_SEGMENTO;
+        return;
+    }
 
     uint32_t dire_memoria = tabla_seg[ registros[EDX]>>16 ].base + ( registros[EDX] & 0x0000FFFF );
-    uint16_t cant_valores = registros[ECX] & 0x00FF;
+    uint16_t cant_valores = registros[ECX] & 0x0000FFFF;
     uint16_t cantbytes = registros[ECX] >> 16;
     uint8_t modo_lectura = registros[EAX];
     if(valorA == 1){
-
         for(int i = 0; i < cant_valores; i++){
             printf("[%04X]: ", dire_memoria);
             int32_t valor_usuario;
@@ -1087,7 +1125,10 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
 
     }else if (valorA == 2){
-    
+       if ( offset + cant_valores * cantbytes > tabla_seg[seg].tam ){   // mostrar fuera del segmento
+            error_actual = ERR_FALLO_SEGMENTO;
+            return;
+        } 
        for(int i = 0; i < cant_valores; i++){
 
         if ( dire_memoria != -1 ){
@@ -1168,7 +1209,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     else if ( valorA == 4 ){
         // Hay que fijarse los errores que se pueden llegar a ocurrir
         
-        while ( RAM[dire_memoria] != 0x00 && dire_memoria <= tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base ){
+        while ( RAM[dire_memoria] != 0x00 && dire_memoria < tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base ){
             if (RAM[dire_memoria] != 0x0A){ // 0x0A valor en ascii de \n
                 printf("%c", RAM[dire_memoria]);
             }
@@ -1211,7 +1252,7 @@ void JP( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         }
         else if (tipoOpA == 0x01){
             uint8_t nroRegistroA = valorA & 0x0000001F;
-            valor = registros[nroRegistroA]; 
+            valor = pseudonimoOperando(valorA);
         }else
             valor = valorA;
         
@@ -1231,7 +1272,7 @@ void JN (  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     }
     else if (tipoOpA == 0x01){
         uint8_t nroRegistroA = valorA & 0x0000001F;
-        valor = registros[nroRegistroA]; 
+        valor = pseudonimoOperando(valorA); 
     }else
         valor = valorA;
 

@@ -1,6 +1,15 @@
 #include "desensamblador.c"
 #include <time.h>  // Para la operacion RND
-
+//  COSAS FLATANTES!!!!!
+//  DISSASEMBLER CONSTANTES(strings)->listo
+//  DISTINTAS CABECERAS -> RESPONDIDO, se refiere al distinto uso de la memoria RAM, y la tabla de segmento  
+//  argc cantidad de argumentos -> RESPONDIDO, se tiene en cuenta el nombre
+//  tabla de segmentos inicializarla en 0 -> RESPONDIDO, si inicializarla en 0
+//  INSTRUCCION INVALIDA -> no deberia haber una instruccion invalida, pero lo debemos implementar
+//  IMPLEMENTAR REGISTROS EN RDN 
+//  agregar a jp y jn el tema de los registros compactos, no soporta por ejemplo AX o AL o FH
+//  revisar SYS 1 y 2
+//  PONER EN LA SYS SI NOS PASAMOS DE SEGMENTO ERROR FALLA DE SEGMENTO 
 #define MEMORIA_DEFAULT_KIB 16
 #define TAM_CABECERA_V1  8
 #define TAM_CABECERA_V2  18
@@ -165,7 +174,7 @@ int cabeceraEntraEnMemoria( cabecera_programa *p, uint32_t tam_param, uint32_t t
     return total <= tam_memoria;
 }
 
-// Todas las entradas de la tabla arrancan invalidas (0xFFFFFFFF)
+// todas las entradas de la tabla arrancan invalidas (0xFFFFFFFF)
 void limpiarTablaSegmentos(){
     for (int i = 0; i < TAM_SEG; i++){
         tabla_seg[i].base = 0xFFFF;
@@ -173,7 +182,7 @@ void limpiarTablaSegmentos(){
     }
 }
 
-// Crea la entrada del segmento (si tiene tamaño > 0) y deja cargado su registro
+// crea la entrada del segmento (si tiene tamaño > 0) y deja cargado su registro
 void ubicoseg(int *seg, uint32_t *base, uint32_t tam_seg, int reg){
     if (tam_seg != 0){
         tabla_seg[*seg].base = *base;
@@ -189,7 +198,7 @@ void ubicoseg(int *seg, uint32_t *base, uint32_t tam_seg, int reg){
 void inicializo_tabla_segmentos(cabecera_programa *p, uint32_t tam_param){
     int seg = 0;
     uint32_t base = 0;
-
+    
     limpiarTablaSegmentos();
 
     ubicoseg(&seg, &base, tam_param,    PS);
@@ -318,7 +327,7 @@ void cargoParametros(argumentos_vm *args){
     }
 
     PUSH(2, 0, dir_array, 0);
-    PUSH(2, 0, args->cant_params, 0);
+    PUSH(2, 0, args->cant_params + 1, 0);
     PUSH(2, 0, -1, 0);
 }
 

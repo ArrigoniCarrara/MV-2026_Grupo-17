@@ -59,7 +59,47 @@ void formatearOperando(char *buffer, unsigned char tipo, int32_t valor){
     }
 }
 
+// Muestra las cadenas del Const Segment: [direccion] bytes en hexa | "texto"
+void mostrarConstantes(){
+    if (registros[KS] == 0xFFFFFFFF)       // no hay Const Segment
+        return;
+
+    uint32_t i = tabla_seg[registros[KS] >> 16].base;
+    uint32_t fin = i + tabla_seg[registros[KS] >> 16].tam;
+
+    while (i < fin){
+        uint32_t inicio = i;
+        while (i < fin && RAM[i] != 0x00)
+            i++;
+        if (i < fin)
+            i++;                           // incluyo el '\0' final
+        uint32_t largo = i - inicio;
+
+        char strBytes[32] = "";
+        int pos = 0;
+        if (largo > 7){                    // muestro los primeros 6 bytes y ".."
+            for (uint32_t k = 0; k < 6; k++)
+                pos += snprintf(strBytes + pos, sizeof(strBytes) - pos, "%02X ", RAM[inicio + k]);
+            snprintf(strBytes + pos, sizeof(strBytes) - pos, "..");
+        }
+        else{
+            for (uint32_t k = 0; k < largo; k++)
+                pos += snprintf(strBytes + pos, sizeof(strBytes) - pos, "%02X ", RAM[inicio + k]);
+        }
+
+        printf("  [%04X] %-24s| \"", inicio, strBytes);
+        for (uint32_t k = inicio; k < i && RAM[k] != 0x00; k++){
+            if (RAM[k] >= 32 && RAM[k] <= 126)
+                printf("%c", RAM[k]);
+            else
+                printf(".");               // no imprimible
+        }
+        printf("\"\n");
+    }
+}
+
 void desensamblar(){
+    mostrarConstantes();
     if (registros[CS] == 0xFFFFFFFF)       // no hay Code Segment
         return;
 
