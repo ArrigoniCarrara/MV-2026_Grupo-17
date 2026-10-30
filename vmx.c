@@ -360,6 +360,9 @@ int main(int argc, char *argv[]) {
             args.memoria_kib = 16;
             args.cant_params = 0;
             args.params      = NULL;
+            p.tam_extra = 0;
+            p.tam_stack = 0;
+            p.tam_const = 0;
         }
         else{
             tam_param = tamParamSegment(&args);

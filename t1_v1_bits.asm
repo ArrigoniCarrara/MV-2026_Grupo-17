@@ -5,7 +5,7 @@
 main:   ; --- Paso 0: dejo el Extra Segment en cero para detectar contaminacion ---
         mov [ES+0], 0
         mov [ES+4], 0
-
+        sys 0xF
         ; --- Control: leer 1 celda de 4 bytes en DS+12 (ultimos 4 bytes validos) ---
         mov eax, 0x01       ; decimal
         mov edx, DS
