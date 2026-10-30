@@ -1080,6 +1080,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
 
      if (valorA == 0){
         system("cls");
+        return;
      }
     uint16_t seg = registros[EDX] >> 16;
     uint32_t offset = registros[EDX] & 0x0000FFFF;
@@ -1092,6 +1093,9 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     uint16_t cant_valores = registros[ECX] & 0x0000FFFF;
     uint16_t cantbytes = registros[ECX] >> 16;
     uint8_t modo_lectura = registros[EAX];
+
+
+
     if(valorA == 1){
         for(int i = 0; i < cant_valores; i++){
             printf("[%04X]: ", dire_memoria);
@@ -1218,6 +1222,13 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             dire_memoria++;
         }
         if (dire_memoria >  tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base){
+            error_actual = ERR_FALLO_SEGMENTO;
+            return;
+        }
+    }
+    if (valorA == 1 || valorA == 2){
+        uint64_t total = (uint64_t)cant_valores * cantbytes;
+        if ((uint64_t)offset + total > tabla_seg[seg].tam){
             error_actual = ERR_FALLO_SEGMENTO;
             return;
         }
