@@ -1,15 +1,11 @@
 #include "desensamblador.c"
 #include <time.h>  // Para la operacion RND
 //  COSAS FLATANTES!!!!!
-//  DISSASEMBLER CONSTANTES(strings)->listo
-//  DISTINTAS CABECERAS -> RESPONDIDO, se refiere al distinto uso de la memoria RAM, y la tabla de segmento  
-//  argc cantidad de argumentos -> RESPONDIDO, se tiene en cuenta el nombre
-//  tabla de segmentos inicializarla en 0 -> RESPONDIDO, si inicializarla en 0
-//  INSTRUCCION INVALIDA -> no deberia haber una instruccion invalida, pero lo debemos implementar
-//  IMPLEMENTAR REGISTROS EN RDN 
-//  agregar a jp y jn el tema de los registros compactos, no soporta por ejemplo AX o AL o FH
-//  revisar SYS 1 y 2
-//  PONER EN LA SYS SI NOS PASAMOS DE SEGMENTO ERROR FALLA DE SEGMENTO 
+// OP 1 y OP 2 hay que revisarlos bien
+// -2 SHL 0 pone en CC = A, se activa el bit de carry, no se pq ¿Esta Bien?
+// Operaciones de memoria de la pila deben modificar LAR y MAR???
+// en la prueba 3, el ultimo CC, esta mal (REVISAR)
+// COSAS de listas a revisar (creo que chat esta alucinando)
 #define MEMORIA_DEFAULT_KIB 16
 #define TAM_CABECERA_V1  8
 #define TAM_CABECERA_V2  18

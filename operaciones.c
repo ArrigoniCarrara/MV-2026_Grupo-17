@@ -79,6 +79,7 @@ int lecturaEnMemoria( int32_t valorOp, int32_t cantBytes ){
         registros[MBR] = valor;
         return valor;
     }
+    return 0;
 }
 
 void escribirBE(FILE *f, uint32_t valor, int n){
@@ -1084,7 +1085,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
      }
     uint16_t seg = registros[EDX] >> 16;
     uint32_t offset = registros[EDX] & 0x0000FFFF;
-    if ( seg >= TAM_SEG || ( tabla_seg[seg].base == -1 && tabla_seg[seg].tam == -1 ) || offset >= tabla_seg[seg].tam ){
+    if ( seg >= TAM_SEG || ( tabla_seg[seg].base == 0xFFFF && tabla_seg[seg].tam == 0xFFFF ) || offset >= tabla_seg[seg].tam ){
         error_actual = ERR_FALLO_SEGMENTO;
         return;
     }
@@ -1094,7 +1095,13 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     uint16_t cantbytes = registros[ECX] >> 16;
     uint8_t modo_lectura = registros[EAX];
 
-
+    if (valorA == 1 || valorA == 2){
+        // los limites se validan ANTES de tocar la memoria
+        if ((uint64_t)offset + (uint64_t)cant_valores * cantbytes > tabla_seg[seg].tam){
+            error_actual = ERR_FALLO_SEGMENTO;
+            return;
+        }
+    }
 
     if(valorA == 1){
         for(int i = 0; i < cant_valores; i++){
@@ -1195,7 +1202,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             error_actual = ERR_FALLO_SEGMENTO;
             return;
         }
-        printf("[Escribi]: ");
+        
         c = getchar();
         while (c != '\n' && c != EOF){
             if (registros[ECX] == -1 || i < registros[ECX]){
@@ -1210,29 +1217,16 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         }
         RAM[tabla_seg[seg].base + offset + i] = 0;
     }
-    else if ( valorA == 4 ){
-        // Hay que fijarse los errores que se pueden llegar a ocurrir
-        
-        while ( RAM[dire_memoria] != 0x00 && dire_memoria < tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base ){
-            if (RAM[dire_memoria] != 0x0A){ // 0x0A valor en ascii de \n
-                printf("%c", RAM[dire_memoria]);
-            }
-            else
-                printf("\n");
+    else if ( valorA == 4 ){   
+        uint32_t fin = tabla_seg[seg].base + tabla_seg[seg].tam;
+        while (dire_memoria < fin && RAM[dire_memoria] != 0x00){
+            putchar(RAM[dire_memoria]);
             dire_memoria++;
         }
-        if (dire_memoria >  tabla_seg[ registros[EDX]>>16 ].tam + tabla_seg[ registros[EDX]>>16 ].base){
+        if (dire_memoria >= fin)          // se llego al limite sin encontrar el '\0'
             error_actual = ERR_FALLO_SEGMENTO;
-            return;
-        }
     }
-    if (valorA == 1 || valorA == 2){
-        uint64_t total = (uint64_t)cant_valores * cantbytes;
-        if ((uint64_t)offset + total > tabla_seg[seg].tam){
-            error_actual = ERR_FALLO_SEGMENTO;
-            return;
-        }
-    }
+    
 }
 
 void JMP( unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
@@ -1478,7 +1472,7 @@ void POP(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         valor = valor << 8;
         valor = valor | RAM[dirfisica + i];
     }
-    registros[SP] += 4;
+    // antes la modificacion de sp estaba acá
 
     uint8_t cantBytes = 0;
 
@@ -1509,6 +1503,7 @@ void POP(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         else
             registros[nroRegistroA] = valor; 
     }
+    registros[SP] += 4; // Si falla pila aca esta el error (lo cambie por especificacion)
 }
 
 
@@ -1518,6 +1513,7 @@ void RET(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
 
 void PUSH(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
     uint16_t seg = registros[SP] >> 16;
+    registros[SP] -= 4; // ahora puse la modificacion del sp como dicta la especificacion
 
     if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
         error_actual = ERR_FALLO_SEGMENTO;
@@ -1541,7 +1537,7 @@ void PUSH(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     else
         valor = valorA; 
 
-    registros[SP] -= 4;
+    // antes estaba aca el sp --
     uint32_t dirfisica = tabla_seg[seg].base + (registros[SP] & 0xFFFF);
     for (int i = 0; i < 4; i++)
         RAM[dirfisica + i] = (valor >> (24 - 8 * i)) & 0xFF;
