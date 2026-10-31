@@ -6,6 +6,7 @@
 
 main:       mov     eax, 0
             ldh     eax, 0x4000       ; 0x40000000
+            sys 0xF
             shl     eax, 2
             mov     [4], cc
             mov     [0], eax          ; 0; N=0 Z=1 C=1 V=1 (ejemplo guia)
