@@ -35,6 +35,21 @@ int32_t memoria(){
     return aux;
 }
 
+uint32_t empaquetarOperando( unsigned char tipo, int32_t valor ){
+    uint32_t mascara;
+    if ( tipo == 0x01 )
+        mascara = 0x000000FF;
+    else
+        if ( tipo == 0x02 )
+            mascara = 0x0000FFFF;
+        else
+            if ( tipo == 0x03 )
+                mascara = 0x00FFFFFF;
+            else
+                mascara = 0;
+    return ( (uint32_t) tipo << 24 ) | ( (uint32_t) valor & mascara );
+}
+
  typedef int32_t (*tipo_operando[4])(); // Vector de punteros a funciones para rescatar el valor de cada operando
  tipo_operando p_tipo_op = {ninguno, registro, inmediato, memoria}; // y para mover correctamente el IP
 
@@ -60,12 +75,8 @@ void dosOperandos(){
         registros[OPC] = cod_op;//OPC = codigo de operacion
         // Debo poner en el byte mas significativo el codigo del operando y en el resto el valor del operando
 
-        registros[OP1] = tipo_opa; //OP1 = operando A
-        registros[OP1] = registros[OP1] << 24;
-        registros[OP1] = registros[OP1] | valor_opa;
-        registros[OP2] = tipo_opb;// OP2 = operando B
-        registros[OP2] = registros[OP2] << 24;
-        registros[OP2] = registros[OP2] | valor_opb;
+        registros[OP1] = empaquetarOperando( tipo_opa, valor_opa );
+        registros[OP2] = empaquetarOperando( tipo_opb, valor_opb );
 
         if (registros[IP] != -1 && error_actual == ERR_NINGUNO){
             registros[IP] = registros[IP] + 1;
@@ -93,10 +104,8 @@ void unOperando(){
         valor_opa = p_tipo_op[tipo_opa]();
 
         registros[OPC] = cod_op; // OPC = codigo de operacion
-        registros[OP1] = tipo_opa; //OP1 = operando A
-        registros[OP1] = registros[OP1] << 24;
-        registros[OP1] = registros[OP1] | valor_opa;
-        registros[OP2] = tipo_opb;// OP2 = operando B
+        registros[OP1] = empaquetarOperando( tipo_opa, valor_opa );
+        registros[OP2] = 0;
 
         if (registros[IP] != -1 && error_actual == ERR_NINGUNO){
             registros[IP] = registros[IP] + 1;
@@ -121,6 +130,8 @@ void ningunOperando(){
         //}
         
         registros[OPC] = cod_op;// codigo de operacion
+        registros[OP1] = 0;
+        registros[OP2] = 0;
         
         if (registros[IP] != -1 && error_actual == ERR_NINGUNO){
             registros[IP] = registros[IP] + 1;

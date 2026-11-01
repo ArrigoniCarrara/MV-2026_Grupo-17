@@ -1503,13 +1503,13 @@ void STOP( unsigned char opA, unsigned char opB, int32_t valorA, int32_t valorB 
 void POP(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB){
     uint16_t seg = registros[SP] >> 16;
 
-    if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
-        error_actual = ERR_FALLO_SEGMENTO;
+    if((registros[SP] & 0xFFFF) + 4 > tabla_seg[seg].tam){
+        error_actual = ERR_UNDERFLOW;
         return;
     }
 
-    if((registros[SP] & 0xFFFF) + 4 > tabla_seg[seg].tam){
-        error_actual = ERR_UNDERFLOW;
+    if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
+        error_actual = ERR_FALLO_SEGMENTO;
         return;
     }
 
@@ -1520,6 +1520,10 @@ void POP(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t v
         valor = valor | RAM[dirfisica + i];
     }
     // antes la modificacion de sp estaba acá
+
+    registros[LAR] = registros[SP];                        // SP todavía SIN incrementar
+    registros[MAR] = (4u << 16) | (dirfisica & 0xFFFF);
+    registros[MBR] = valor;
 
     uint8_t cantBytes = 0;
 
@@ -1562,13 +1566,13 @@ void PUSH(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
     uint16_t seg = registros[SP] >> 16;
     registros[SP] -= 4; // ahora puse la modificacion del sp como dicta la especificacion
 
-    if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
-        error_actual = ERR_FALLO_SEGMENTO;
+    if ( registros[SP] < registros[SS] ){                        
+        error_actual = ERR_OVERFLOW;
         return;
     }
 
-    if((registros[SP] & 0xFFFF) < 4){ 
-        error_actual = ERR_OVERFLOW;
+    if (seg != registros[SS] >> 16 || (registros[SP] & 0xFFFF) > tabla_seg[registros[SS] >> 16].tam){
+        error_actual = ERR_FALLO_SEGMENTO;
         return;
     }
 
@@ -1586,6 +1590,11 @@ void PUSH(unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t 
 
     // antes estaba aca el sp --
     uint32_t dirfisica = tabla_seg[seg].base + (registros[SP] & 0xFFFF);
+
+    registros[LAR] = registros[SP];                        
+    registros[MAR] = (4u << 16) | (dirfisica & 0xFFFF);
+    registros[MBR] = valor;
+
     for (int i = 0; i < 4; i++)
         RAM[dirfisica + i] = (valor >> (24 - 8 * i)) & 0xFF;
 }

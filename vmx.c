@@ -1,10 +1,5 @@
 #include "desensamblador.c"
 #include <time.h>  // Para la operacion RND
-//  COSAS FLATANTES!!!!!
-// OP 1 y OP 2 hay que revisarlos bien
-// -2 SHL 0 pone en CC = A, se activa el bit de carry, no se pq ¿Esta Bien?
-// Operaciones de memoria de la pila deben modificar LAR y MAR???
-// en la prueba 3, el ultimo CC, esta mal (REVISAR)
 #define MEMORIA_DEFAULT_KIB 16
 #define TAM_CABECERA_V1  8
 #define TAM_CABECERA_V2  18
