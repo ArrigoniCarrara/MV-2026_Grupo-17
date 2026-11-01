@@ -1153,7 +1153,7 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     if(valorA == 1){
         for(int i = 0; i < cant_valores; i++){
             printf("[%04X]: ", dire_memoria);
-            int32_t valor_usuario;
+            int32_t valor_usuario = 0;
             if(modo_lectura == 1){
                 scanf("%d",&valor_usuario);
             }
@@ -1170,7 +1170,12 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
             }
 
             if ( dire_memoria != -1 ){
+
+            //----------------------------| MODIFICO LOS REGISTROS LAR, MAR Y MBR |-------------------------------//
+                registros[LAR] = ((uint32_t)seg << 16) | ((offset + (uint32_t)i * cantbytes) & 0xFFFF);   
+                registros[MAR] = ((uint32_t)cantbytes << 16) | (dire_memoria & 0xFFFF);   
                 registros[MBR] = valor_usuario;
+            // ---------------------------------------------------------------------------------------------------//
                 int aux = cantbytes*8;
                 for ( int i = dire_memoria; i < dire_memoria + cantbytes; i++  ){
                     aux -= 8;
@@ -1197,8 +1202,14 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
                 valor = valor | (RAM[i] << aux);// es un OR acumulativo
             }
             uint32_t dire_memoria_imprimir = dire_memoria;    
-            dire_memoria += cantbytes;
 
+            //----------------------------| MODIFICO LOS REGISTROS LAR, MAR Y MBR |-------------------------------//
+            registros[LAR] = ((uint32_t)seg << 16) | ((offset + (uint32_t)i * cantbytes) & 0xFFFF);       
+            registros[MAR] = ((uint32_t)cantbytes << 16) | (dire_memoria_imprimir & 0xFFFF);              
+            registros[MBR] = valor;     
+            dire_memoria += cantbytes;
+            //---------------------------------------------------------------------------------------------------// 
+            
             printf("[%04X]: ", dire_memoria_imprimir);
             if((modo_lectura & 0x01) == 1){
                 printf(" %d ", valor);
@@ -1258,20 +1269,41 @@ void SYS(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
                     return;
                 }
                 RAM[tabla_seg[seg].base + offset + i] = c;
+
+                //----------------------------| MODIFICO LOS REGISTROS LAR, MAR Y MBR |-------------------------------//
+                registros[LAR] = ((uint32_t)seg << 16) | ((offset + i) & 0xFFFF);                   
+                registros[MAR] = (1u << 16) | ((tabla_seg[seg].base + offset + i) & 0xFFFF);        
+                registros[MBR] = (uint32_t)(c & 0xFF); 
+                //---------------------------------------------------------------------------------------------------//
                 i++;
             }
             c = getchar();   
         }
         RAM[tabla_seg[seg].base + offset + i] = 0;
+        registros[LAR] = ((uint32_t)seg << 16) | ((offset + i) & 0xFFFF);                          
+        registros[MAR] = (1u << 16) | ((tabla_seg[seg].base + offset + i) & 0xFFFF);               
+        registros[MBR] = 0; 
     }
     else if ( valorA == 4 ){   
         uint32_t fin = tabla_seg[seg].base + tabla_seg[seg].tam;
         while (dire_memoria < fin && RAM[dire_memoria] != 0x00){
+
+            //----------------------------| MODIFICO LOS REGISTROS LAR, MAR Y MBR |-------------------------------//
+            registros[LAR] = ((uint32_t)seg << 16) | ((dire_memoria - tabla_seg[seg].base) & 0xFFFF);   
+            registros[MAR] = (1u << 16) | (dire_memoria & 0xFFFF);                                      
+            registros[MBR] = RAM[dire_memoria];  
+            //---------------------------------------------------------------------------------------------------//
+
             putchar(RAM[dire_memoria]);
             dire_memoria++;
         }
         if (dire_memoria >= fin)          // se llego al limite sin encontrar el '\0'
             error_actual = ERR_FALLO_SEGMENTO;
+        else{
+            registros[LAR] = ((uint32_t)seg << 16) | ((dire_memoria - tabla_seg[seg].base) & 0xFFFF);
+            registros[MAR] = (1u << 16) | (dire_memoria & 0xFFFF);
+            registros[MBR] = 0;
+        }
     }
     
 }
