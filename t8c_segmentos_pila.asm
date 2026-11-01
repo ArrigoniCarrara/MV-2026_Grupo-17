@@ -34,8 +34,7 @@
 
 TITULO EQU "Registros de segmento, pila e IP:\n"
 
-main:   
-        mov eax, ip             ; PRIMERA instruccion (3 bytes): IP = CS | 3
+main:   mov eax, ip             ; PRIMERA instruccion (3 bytes): IP = CS | 3
         mov [0], eax
         mov [4], cs
         mov [8], ds
