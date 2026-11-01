@@ -738,9 +738,18 @@ void SWAP(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_
 
 }
 
+uint32_t shl32( uint32_t a, uint32_t cant ){
+    if ( cant >= 32 )
+        return 0;
+    else
+        return a << cant;
+}
+
 void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t valorB ){
     int valorGuardadoB,valorGuardadoA;
     int8_t cantBytes;
+    uint32_t mascara = 0xFFFFFFFF;   // ancho del operando A (igual que en SHR)
+    int ancho = 32;                  // ancho del operando A en bits: 8, 16 o 32
     if ( tipoOpB == 0x03 ){
         cantBytes = ( valorB >> 5 ) & 0x00000007;
         valorGuardadoB = lecturaEnMemoria( valorB,cantBytes );
@@ -751,10 +760,20 @@ void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
     }
     else
         valorGuardadoB = valorB;
+    if ( error_actual != ERR_NINGUNO )
+        return;
+    uint32_t cant = (uint32_t) valorGuardadoB;   // un corrimiento negativo o >= 32 deja todo en cero
+
     if ( tipoOpA == 0x03 ){
         cantBytes = ( valorA >> 5 ) & 0x00000007;
         valorGuardadoA = lecturaEnMemoria( valorA, cantBytes );
-        uint32_t resultado = valorGuardadoA << valorGuardadoB;
+        if ( error_actual != ERR_NINGUNO )
+            return;
+        if ( cantBytes < 4 ){
+            mascara = (1u << (cantBytes * 8)) - 1;
+            ancho = cantBytes * 8;
+        }
+        uint32_t resultado = shl32( valorGuardadoA, cant );
         escrituraEnMemoria( resultado, cantBytes, valorA );
     }
     else{
@@ -764,41 +783,69 @@ void SHL(  unsigned char tipoOpA, unsigned char tipoOpB, int32_t valorA, int32_t
         uint8_t nroRegistroA = valorA & 0x0000001F;
         uint8_t pseudonimo = (valorA >> 5) & 0x03;// Corro los 5 bits del nro de registro
         if ( pseudonimo == 0x01 ){
-            resultado = (registros[nroRegistroA] & 0x000000FF) << valorGuardadoB;
+            mascara = 0xFF; ancho = 8;
+            resultado = shl32( registros[nroRegistroA] & 0x000000FF, cant );
             registros[nroRegistroA] &= 0xFFFFFF00; 
             registros[nroRegistroA] |= (resultado & 0x000000FF);
         }
         else
             if (pseudonimo == 0x02){
-                resultado = (((registros[nroRegistroA] >> 8) << valorGuardadoB) & 0xFF) << 8;
+                mascara = 0xFF; ancho = 8;
+                resultado = ( shl32( registros[nroRegistroA] >> 8, cant ) & 0xFF ) << 8;
                 registros[nroRegistroA] = (registros[nroRegistroA] & 0xFFFF00FF) | resultado;
             }
         else
             if (pseudonimo == 0x3){
-                resultado = ( registros[nroRegistroA] & 0x0000FFFF ) << valorGuardadoB; 
+                mascara = 0xFFFF; ancho = 16;
+                resultado = shl32( registros[nroRegistroA] & 0x0000FFFF, cant );
                 registros[nroRegistroA] &= 0xFFFF0000;
                 registros[nroRegistroA] |= (resultado & 0x0000FFFF);
             }
         else
-            registros[nroRegistroA] <<= valorGuardadoB;     
+            registros[nroRegistroA] = shl32( registros[nroRegistroA], cant );
     }
 
-    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
-    int32_t resultado = valorGuardadoA << valorGuardadoB;
-    if ( resultado == 0 ) // 
-        registros[CC] |= 0x40000000; // XX XX XX XX 
+    uint32_t a = (uint32_t) valorGuardadoA & mascara;        
+    uint32_t res = shl32( a, cant ) & mascara;               
 
-    if ( resultado < 0 )
+    registros[CC] &= 0x0FFFFFFF; // -> 0x xx xx xx limpio los primeros 4 bits
+    if ( res == 0 )
+        registros[CC] |= 0x40000000; // XX XX XX XX
+
+    if ( res & (mascara ^ (mascara >> 1)) )                  
         registros[CC] |= 0x80000000;
 
-    // Overflow
-    int64_t resultadoConSigno = (int64_t)(int32_t)valorGuardadoA << (int64_t)(int32_t)valorGuardadoB;
-    if ( resultadoConSigno > INT32_MAX || resultadoConSigno < INT32_MIN)
-        registros[CC] |= 0x10000000;
+    
+        int32_t sa;
+    if ( ancho == 8 )
+        sa = (int8_t) a;
+    else
+        if ( ancho == 16 )
+            sa = (int16_t) a;
+        else
+            sa = (int32_t) a;
 
-    // Acarreo
-    uint64_t resultadoSinSigno = (uint64_t) valorGuardadoA << (uint64_t)valorGuardadoB;
-    if( resultadoSinSigno >> 32 != 0 || (valorGuardadoB >= 32) && valorGuardadoA != 0 )
+    int64_t exacto;
+    if ( cant >= 32 ){
+        if ( sa != 0 )
+            exacto = INT64_MAX;
+        else
+            exacto = 0;
+    }
+    else
+        exacto = (int64_t) sa * ( (int64_t)1 << cant );
+
+    int64_t maximo = ( (int64_t)1 << (ancho - 1) ) - 1;
+    int64_t minimo = -maximo - 1;
+    if ( exacto > maximo || exacto < minimo )
+        registros[CC] |= 0x10000000;
+    // Acarreo: salio algun bit en 1 por la izquierda del ancho del operando
+    int c;
+    if ( cant >= 32 )
+        c = ( a != 0 );
+    else
+        c = ( ( ( (uint64_t) a << cant ) >> ancho ) != 0 );
+    if ( c )
         registros[CC] |= 0x20000000;
 }
 
